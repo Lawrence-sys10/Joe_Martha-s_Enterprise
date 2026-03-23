@@ -1,0 +1,65 @@
+<?php
+
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ProductController;
+use App\Http\Controllers\SaleController;
+use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\SupplierController;
+use App\Http\Controllers\ReportController;
+use App\Http\Controllers\CCTVController;
+
+// Public routes
+Route::get('/', function () {
+    return redirect()->route('login');
+});
+
+// Authentication routes (simple version)
+Route::get('/login', function () {
+    return view('auth.login');
+})->name('login');
+
+Route::post('/login', function () {
+    $credentials = request()->only('email', 'password');
+    
+    if (auth()->attempt($credentials)) {
+        request()->session()->regenerate();
+        return redirect()->intended('/dashboard');
+    }
+    
+    return back()->withErrors([
+        'email' => 'The provided credentials do not match our records.',
+    ]);
+})->name('login.post');
+
+Route::post('/logout', function () {
+    auth()->logout();
+    request()->session()->invalidate();
+    request()->session()->regenerateToken();
+    return redirect('/');
+})->name('logout');
+
+// Authenticated routes
+Route::middleware(['auth'])->group(function () {
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::resource('products', ProductController::class);
+    Route::resource('categories', CategoryController::class);
+    Route::resource('sales', SaleController::class);
+    Route::resource('customers', CustomerController::class);
+    Route::resource('suppliers', SupplierController::class);
+    Route::get('pos', [SaleController::class, 'create'])->name('pos.index');
+    Route::post('pos', [SaleController::class, 'store'])->name('pos.store');
+    Route::get('sales/receipt/{sale}', [SaleController::class, 'printReceipt'])->name('sales.receipt');
+    Route::post('sales/{sale}/void', [SaleController::class, 'void'])->name('sales.void');
+    Route::get('reports/daily-sales', [ReportController::class, 'dailySales'])->name('reports.daily');
+    
+    // CCTV Routes
+    Route::prefix('cctv')->group(function () {
+        Route::get('/', [CCTVController::class, 'index'])->name('cctv.index');
+        Route::get('/cameras', [CCTVController::class, 'cameras'])->name('cctv.cameras');
+        Route::get('/logs', [CCTVController::class, 'logs'])->name('cctv.logs');
+        Route::get('/stream/{cctv}', [CCTVController::class, 'stream'])->name('cctv.stream');
+        Route::post('/log-event', [CCTVController::class, 'logEvent'])->name('cctv.log-event');
+    });
+});
