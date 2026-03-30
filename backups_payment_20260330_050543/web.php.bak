@@ -113,6 +113,3 @@ Route::resource('expenses', App\Http\Controllers\ExpenseController::class);
 
 Route::post('/customers/{customer}/add-credit', [App\Http\Controllers\CustomerController::class, 'addCredit'])->name('customers.add-credit');
 
-
-Route::post('/customers/{customer}/pay', [App\Http\Controllers\CustomerController::class, 'makePayment'])->name('customers.pay');
-

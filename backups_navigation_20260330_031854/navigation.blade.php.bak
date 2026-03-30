@@ -88,12 +88,6 @@
                             <a href="{{ route('reports.customer-debt') }}" class="block px-4 py-2 text-sm text-amber-700 hover:bg-amber-50">👥 Customer Debt</a>
                             <a href="{{ route('reports.supplier-balance') }}" class="block px-4 py-2 text-sm text-amber-700 hover:bg-amber-50">🏭 Supplier Balance</a>
                             <a href="{{ route('reports.cash-flow') }}" class="block px-4 py-2 text-sm text-amber-700 hover:bg-amber-50">💵 Cash Flow</a>
-                            <a href="{{ route('expenses.index') }}" class="block px-4 py-2 text-sm text-amber-700 hover:bg-amber-50">
-                                <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
-                                </svg>
-                                Expenses
-                            </a>
                             <a href="{{ route('payments.index') }}" class="block px-4 py-2 text-sm text-amber-700 hover:bg-amber-50">💳 Payments</a>
                         </div>
                     </div>
@@ -170,26 +164,7 @@
             @can('view suppliers')
             <a href="{{ route('suppliers.index') }}" class="block pl-3 pr-4 py-2 text-base font-medium text-amber-600 hover:text-amber-800 hover:bg-amber-50">Suppliers</a>
             @endcan
-            <div class="relative" x-data="{ openReports: false }">
-                <button @click="openReports = !openReports" class="w-full text-left pl-3 pr-4 py-2 text-base font-medium text-amber-600 hover:text-amber-800 hover:bg-amber-50 flex justify-between items-center">
-                    <span>Reports</span>
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                    </svg>
-                </button>
-                <div x-show="openReports" class="pl-4 space-y-1">
-                    <a href="{{ route('reports.daily') }}" class="block pl-3 pr-4 py-2 text-sm text-amber-600 hover:text-amber-800 hover:bg-amber-50">📊 Daily Sales</a>
-                    <a href="{{ route('reports.monthly') }}" class="block pl-3 pr-4 py-2 text-sm text-amber-600 hover:text-amber-800 hover:bg-amber-50">📈 Monthly Sales</a>
-                    <a href="{{ route('reports.profit-loss') }}" class="block pl-3 pr-4 py-2 text-sm text-amber-600 hover:text-amber-800 hover:bg-amber-50">💰 Profit & Loss</a>
-                    <a href="{{ route('reports.stock-valuation') }}" class="block pl-3 pr-4 py-2 text-sm text-amber-600 hover:text-amber-800 hover:bg-amber-50">📦 Stock Valuation</a>
-                    <a href="{{ route('reports.top-products') }}" class="block pl-3 pr-4 py-2 text-sm text-amber-600 hover:text-amber-800 hover:bg-amber-50">🏆 Top Products</a>
-                    <a href="{{ route('reports.customer-debt') }}" class="block pl-3 pr-4 py-2 text-sm text-amber-600 hover:text-amber-800 hover:bg-amber-50">👥 Customer Debt</a>
-                    <a href="{{ route('reports.supplier-balance') }}" class="block pl-3 pr-4 py-2 text-sm text-amber-600 hover:text-amber-800 hover:bg-amber-50">🏭 Supplier Balance</a>
-                    <a href="{{ route('reports.cash-flow') }}" class="block pl-3 pr-4 py-2 text-sm text-amber-600 hover:text-amber-800 hover:bg-amber-50">💵 Cash Flow</a>
-                    <a href="{{ route('expenses.index') }}" class="block pl-3 pr-4 py-2 text-sm text-amber-600 hover:text-amber-800 hover:bg-amber-50">💸 Expenses</a>
-                    <a href="{{ route('payments.index') }}" class="block pl-3 pr-4 py-2 text-sm text-amber-600 hover:text-amber-800 hover:bg-amber-50">💳 Payments</a>
-                </div>
-            </div>
+            <a href="#" class="block pl-3 pr-4 py-2 text-base font-medium text-amber-600 hover:text-amber-800 hover:bg-amber-50">Reports</a>
             @can('view cctv')
             <a href="{{ route('cctv.index') }}" class="block pl-3 pr-4 py-2 text-base font-medium text-amber-600 hover:text-amber-800 hover:bg-amber-50">CCTV</a>
             @endcan

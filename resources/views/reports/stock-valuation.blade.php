@@ -90,7 +90,6 @@
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
-                        <tr>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">SKU</th>
                             <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Stock Qty</th>
@@ -101,29 +100,35 @@
                     <tbody class="bg-white divide-y divide-gray-200">
                         @forelse($products as $product)
                         @php
-                            $totalValue = $product->stock_quantity * $product->cost_price;
-                            $isLowStock = $product->stock_quantity <= $product->minimum_stock;
+                            // Calculate total value for this product - ensure values are numeric
+                            $stockQty = floatval($product->stock_quantity ?? 0);
+                            $costPrice = floatval($product->cost_price ?? 0);
+                            $itemTotalValue = $stockQty * $costPrice;
+                            $isLowStock = $stockQty <= floatval($product->minimum_stock ?? 0) && $stockQty > 0;
+                            $isOutOfStock = $stockQty <= 0;
                         @endphp
                         <tr class="hover:bg-amber-50 transition-colors">
                             <td class="px-6 py-4">
                                 <div class="text-sm font-medium text-gray-900">{{ $product->name }}</div>
-                                <div class="text-xs text-gray-500">{{ $product->unit }}</div>
+                                <div class="text-xs text-gray-500">{{ $product->unit ?? 'piece' }}</div>
                             </td>
-                            <td class="px-6 py-4 text-sm text-gray-500 font-mono">{{ $product->sku }}</td>
+                            <td class="px-6 py-4 text-sm text-gray-500 font-mono">{{ $product->sku ?? 'N/A' }}</td>
                             <td class="px-6 py-4 text-right">
-                                <span class="text-sm font-semibold {{ $isLowStock ? 'text-red-600' : 'text-gray-900' }}">
-                                    {{ number_format($product->stock_quantity) }}
+                                <span class="text-sm font-semibold {{ $isLowStock ? 'text-yellow-600' : ($isOutOfStock ? 'text-red-600' : 'text-gray-900') }}">
+                                    {{ number_format($stockQty) }}
                                 </span>
-                                @if($product->minimum_stock > 0)
-                                <div class="text-xs text-gray-400">Min: {{ $product->minimum_stock }}</div>
+                                @if(($product->minimum_stock ?? 0) > 0 && !$isOutOfStock)
+                                <div class="text-xs text-gray-400">Min: {{ number_format($product->minimum_stock) }}</div>
                                 @endif
                             </td>
-                            <td class="px-6 py-4 text-right text-sm text-gray-900">GHS {{ number_format($product->cost_price, 2) }}</td>
                             <td class="px-6 py-4 text-right">
-                                <span class="text-sm font-bold text-green-600">GHS {{ number_format($totalValue, 2) }}</span>
+                                <span class="text-sm font-medium text-gray-900">GHS {{ number_format($costPrice, 2) }}</span>
+                            </td>
+                            <td class="px-6 py-4 text-right">
+                                <span class="text-sm font-bold text-green-600">GHS {{ number_format($itemTotalValue, 2) }}</span>
                             </td>
                             <td class="px-6 py-4 text-center">
-                                @if($product->stock_quantity <= 0)
+                                @if($isOutOfStock)
                                 <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
                                     Out of Stock
                                 </span>
@@ -153,7 +158,7 @@
                         <tr class="font-semibold">
                             <td colspan="4" class="px-6 py-4 text-right">Total Stock Value:</td>
                             <td class="px-6 py-4 text-right text-lg font-bold text-amber-600">GHS {{ number_format($totalValue, 2) }}</td>
-                            <td></td>
+                            <td class="px-6 py-4"></td>
                         </tr>
                     </tfoot>
                 </table>
@@ -163,10 +168,12 @@
         <!-- Low Stock Alert Section -->
         @php
             $lowStockItems = $products->filter(function($p) {
-                return $p->stock_quantity <= $p->minimum_stock && $p->stock_quantity > 0;
+                $stockQty = floatval($p->stock_quantity ?? 0);
+                $minStock = floatval($p->minimum_stock ?? 0);
+                return $stockQty <= $minStock && $stockQty > 0;
             });
             $outOfStockItems = $products->filter(function($p) {
-                return $p->stock_quantity <= 0;
+                return floatval($p->stock_quantity ?? 0) <= 0;
             });
         @endphp
         

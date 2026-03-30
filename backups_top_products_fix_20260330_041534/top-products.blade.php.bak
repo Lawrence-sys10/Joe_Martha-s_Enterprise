@@ -11,8 +11,11 @@
                     <p class="text-amber-100 text-sm mt-1">Best performing products by sales volume</p>
                 </div>
                 <div class="flex gap-3">
-                    <a href="{{ route('dashboard') }}" class="bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white font-bold py-2 px-4 rounded-lg transition-all">
-                        Back to Dashboard
+                    <a href="{{ route('reports.daily') }}" class="bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white font-bold py-2 px-4 rounded-lg transition-all">
+                        Back to Reports
+                    </a>
+                    <a href="{{ route('reports.daily') }}" class="bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white font-bold py-2 px-4 rounded-lg transition-all">
+                        Export Excel
                     </a>
                 </div>
             </div>
@@ -28,12 +31,12 @@
             <form method="GET" class="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
-                    <input type="date" name="start_date" value="{{ request('start_date', $startDate ?? now()->startOfMonth()->toDateString()) }}" 
+                    <input type="date" name="start_date" value="{{ request('start_date', now()->startOfMonth()->toDateString()) }}" 
                            class="w-full rounded-lg border-gray-300 focus:border-amber-500 focus:ring-amber-500">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">End Date</label>
-                    <input type="date" name="end_date" value="{{ request('end_date', $endDate ?? now()->toDateString()) }}" 
+                    <input type="date" name="end_date" value="{{ request('end_date', now()->toDateString()) }}" 
                            class="w-full rounded-lg border-gray-300 focus:border-amber-500 focus:ring-amber-500">
                 </div>
                 <div>
@@ -54,15 +57,33 @@
         </div>
         
         @php
-            $startDate = request('start_date', $startDate ?? now()->startOfMonth()->toDateString());
-            $endDate = request('end_date', $endDate ?? now()->toDateString());
-            $limit = (int) request('limit', 10);
+            $startDate = request('start_date', now()->startOfMonth()->toDateString());
+            $endDate = request('end_date', now()->toDateString());
+            $limit = request('limit', 10);
+            
+            $topProducts = \DB::table('sale_items')
+                ->join('products', 'sale_items.product_id', '=', 'products.id')
+                ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
+                ->whereBetween('sales.sale_date', [$startDate, $endDate])
+                ->where('sales.status', 'completed')
+                ->select(
+                    'products.id',
+                    'products.name',
+                    'products.sku',
+                    'products.unit_price',
+                    'products.cost_price',
+                    \DB::raw('SUM(sale_items.quantity) as total_quantity'),
+                    \DB::raw('SUM(sale_items.total) as total_revenue'),
+                    \DB::raw('COUNT(DISTINCT sale_items.sale_id) as times_sold'),
+                    \DB::raw('AVG(sale_items.unit_price) as avg_price')
+                )
+                ->groupBy('products.id', 'products.name', 'products.sku', 'products.unit_price', 'products.cost_price')
+                ->orderBy('total_revenue', 'desc')
+                ->limit($limit)
+                ->get();
             
             $totalRevenue = $topProducts->sum('total_revenue');
             $totalQuantity = $topProducts->sum('total_quantity');
-            $totalSales = \App\Models\Sale::whereBetween('sale_date', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
-                ->where('status', 'completed')
-                ->sum('total');
         @endphp
         
         <!-- Summary Cards -->
@@ -71,7 +92,9 @@
                 <div class="flex items-center justify-between">
                     <div>
                         <p class="text-sm text-gray-500">Period</p>
-                        <p class="text-lg font-bold text-gray-800 mt-1">{{ \Carbon\Carbon::parse($startDate)->format('M d') }} - {{ \Carbon\Carbon::parse($endDate)->format('M d, Y') }}</p>
+                        <p class="text-lg font-bold text-gray-800 mt-1">
+                            {{ \Carbon\Carbon::parse($startDate)->format('M d') }} - {{ \Carbon\Carbon::parse($endDate)->format('M d, Y') }}
+                        </p>
                     </div>
                     <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
                         <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -84,7 +107,7 @@
             <div class="bg-white rounded-2xl shadow-xl border border-amber-100 p-6">
                 <div class="flex items-center justify-between">
                     <div>
-                        <p class="text-sm text-gray-500">Total Revenue (Top {{ $limit }})</p>
+                        <p class="text-sm text-gray-500">Total Revenue</p>
                         <p class="text-2xl font-bold text-green-600 mt-2">GHS {{ number_format($totalRevenue, 2) }}</p>
                     </div>
                     <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
@@ -112,8 +135,8 @@
             <div class="bg-white rounded-2xl shadow-xl border border-amber-100 p-6">
                 <div class="flex items-center justify-between">
                     <div>
-                        <p class="text-sm text-gray-500">% of Total Sales</p>
-                        <p class="text-2xl font-bold text-amber-600 mt-2">{{ number_format($totalSales > 0 ? ($totalRevenue / $totalSales) * 100 : 0, 1) }}%</p>
+                        <p class="text-sm text-gray-500">Average Order Value</p>
+                        <p class="text-2xl font-bold text-amber-600 mt-2">GHS {{ number_format($totalQuantity > 0 ? $totalRevenue / $totalQuantity : 0, 2) }}</p>
                     </div>
                     <div class="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center">
                         <svg class="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -125,11 +148,14 @@
         </div>
         
         <!-- Top Products Table -->
-        @if($topProducts->count() > 0)
         <div class="bg-white rounded-2xl shadow-xl border border-amber-100 overflow-hidden">
             <div class="bg-gradient-to-r from-amber-50 to-orange-50 px-6 py-4 border-b border-amber-100">
-                <h3 class="text-lg font-semibold text-gray-800">Top {{ $limit }} Selling Products</h3>
-                <p class="text-sm text-gray-500 mt-1">Ranked by revenue generated</p>
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-800">Top {{ $limit }} Selling Products</h3>
+                        <p class="text-sm text-gray-500 mt-1">Ranked by revenue generated</p>
+                    </div>
+                </div>
             </div>
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
@@ -143,7 +169,7 @@
                             <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Profit</th>
                         </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
-                        @foreach($topProducts as $index => $product)
+                        @forelse($topProducts as $index => $product)
                         @php
                             $profit = $product->total_revenue - ($product->cost_price * $product->total_quantity);
                             $profitMargin = $product->total_revenue > 0 ? ($profit / $product->total_revenue) * 100 : 0;
@@ -164,36 +190,44 @@
                                         <span class="text-lg font-bold text-gray-500 ml-2">#{{ $index + 1 }}</span>
                                     @endif
                                 </div>
-                             </div>
+                            </td>
                             <td class="px-6 py-4">
                                 <div class="text-sm font-medium text-gray-900">{{ $product->name }}</div>
-                                <div class="text-xs text-gray-500">SKU: {{ $product->sku ?? 'N/A' }}</div>
-                             </div>
+                                <div class="text-xs text-gray-500">SKU: {{ $product->sku }}</div>
+                             </td>
                             <td class="px-6 py-4 text-right">
                                 <span class="text-sm font-semibold text-gray-900">{{ number_format($product->total_quantity) }}</span>
-                             </div>
+                             </td>
                             <td class="px-6 py-4 text-right">
                                 <span class="text-sm font-bold text-green-600">GHS {{ number_format($product->total_revenue, 2) }}</span>
-                                @if($topProducts->first()->total_revenue > 0)
                                 <div class="w-full bg-gray-200 rounded-full h-1 mt-1">
                                     <div class="bg-green-500 h-1 rounded-full" style="width: {{ ($product->total_revenue / $topProducts->first()->total_revenue) * 100 }}%"></div>
                                 </div>
-                                @endif
-                             </div>
+                             </td>
                             <td class="px-6 py-4 text-center">
                                 <span class="text-sm text-gray-600">{{ $product->times_sold }}x</span>
-                             </div>
+                             </td>
                             <td class="px-6 py-4 text-right">
                                 <span class="text-sm text-gray-600">GHS {{ number_format($product->avg_price, 2) }}</span>
-                             </div>
+                             </td>
                             <td class="px-6 py-4 text-right">
                                 <div>
                                     <span class="text-sm font-semibold text-green-600">GHS {{ number_format($profit, 2) }}</span>
                                     <div class="text-xs text-gray-500">({{ number_format($profitMargin, 1) }}%)</div>
                                 </div>
-                             </div>
+                             </td>
                          </tr>
-                        @endforeach
+                        @empty
+                         <tr>
+                            <td colspan="7" class="px-6 py-12 text-center">
+                                <svg class="w-16 h-16 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                                </svg>
+                                <p class="text-gray-500">No sales data found for this period</p>
+                                <p class="text-sm text-gray-400 mt-1">Try selecting a different date range</p>
+                            </td>
+                         </tr>
+                        @endforelse
                     </tbody>
                     <tfoot class="bg-gray-50 border-t border-gray-200">
                         <tr class="font-semibold">
@@ -203,11 +237,12 @@
                             <td colspan="3"></td>
                         </tr>
                     </tfoot>
-                </table>
+                 </table>
             </div>
         </div>
         
         <!-- Insights Section -->
+        @if($topProducts->count() > 0)
         <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
             <div class="bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl p-5 border border-blue-200">
                 <div class="flex items-center gap-2 mb-3">
@@ -218,8 +253,8 @@
                 </div>
                 <p class="text-blue-700">
                     <strong>{{ $topProducts->first()->name }}</strong> is your best seller with 
-                    <strong>GHS {{ number_format($topProducts->first()->total_revenue, 2) }}</strong> in revenue 
-                    ({{ number_format(($topProducts->first()->total_revenue / $totalRevenue) * 100, 1) }}% of top {{ $limit }})
+                    <strong>{{ number_format($topProducts->first()->total_revenue, 2) }} GHS</strong> in revenue 
+                    ({{ number_format(($topProducts->first()->total_revenue / $totalRevenue) * 100, 1) }}% of total)
                 </p>
             </div>
             
@@ -231,24 +266,8 @@
                     <h4 class="text-lg font-semibold text-purple-800">Performance Summary</h4>
                 </div>
                 <div class="space-y-2 text-purple-700">
-                    <p>📊 Top {{ $limit }} products account for <strong>{{ number_format($totalSales > 0 ? ($totalRevenue / $totalSales) * 100 : 0, 1) }}%</strong> of total period sales</p>
-                    <p>💰 Total revenue from top products: <strong>GHS {{ number_format($totalRevenue, 2) }}</strong></p>
-                </div>
-            </div>
-        </div>
-        @else
-        <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-lg">
-            <div class="flex">
-                <div class="flex-shrink-0">
-                    <svg class="h-5 w-5 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-                    </svg>
-                </div>
-                <div class="ml-3">
-                    <p class="text-sm text-yellow-700">
-                        <strong>No sales data found for the selected period.</strong><br>
-                        Try selecting a different date range or create some sales first.
-                    </p>
+                    <p>📊 Top {{ $limit }} products account for <strong>{{ number_format(($totalRevenue / \App\Models\Sale::whereBetween('sale_date', [$startDate, $endDate])->where('status', 'completed')->sum('total')) * 100, 1) }}%</strong> of total sales</p>
+                    <p>💰 Average profit margin: <strong>{{ number_format($topProducts->avg(function($p) { return ($p->total_revenue - ($p->cost_price * $p->total_quantity)) / $p->total_revenue * 100; }), 1) }}%</strong></p>
                 </div>
             </div>
         </div>

@@ -20,9 +20,21 @@ class InventoryService
 
     public function getStockLevels()
     {
+        // Include all necessary fields including cost_price for stock valuation
         return Product::where('is_active', true)
-            ->select('name', 'sku', 'stock_quantity', 'minimum_stock', 'unit')
-            ->orderBy('stock_quantity', 'asc')
+            ->select(
+                'id',
+                'name',
+                'sku',
+                'stock_quantity',
+                'minimum_stock',
+                'maximum_stock',
+                'unit',
+                'cost_price',
+                'unit_price',
+                'is_active'
+            )
+            ->orderBy('name', 'asc')
             ->get();
     }
 

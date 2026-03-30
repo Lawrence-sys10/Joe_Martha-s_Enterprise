@@ -26,58 +26,47 @@ class DashboardController extends Controller
 
     public function index()
     {
-        // Get date ranges with proper time boundaries
-        $todayStart = now()->startOfDay()->format('Y-m-d H:i:s');
-        $todayEnd = now()->endOfDay()->format('Y-m-d H:i:s');
-        
-        $monthStart = now()->startOfMonth()->format('Y-m-d H:i:s');
-        $monthEnd = now()->endOfMonth()->format('Y-m-d H:i:s');
-        
-        $yearStart = now()->startOfYear()->format('Y-m-d H:i:s');
-        $yearEnd = now()->endOfYear()->format('Y-m-d H:i:s');
+        // Get today's date
+        $today = now()->toDateString();
+        $thisMonth = now()->startOfMonth()->toDateString();
+        $thisYear = now()->startOfYear()->toDateString();
         
         // Today's Profit & Loss
-        $todaySales = \App\Models\Sale::whereBetween('sale_date', [$todayStart, $todayEnd])
+        $todaySales = \App\Models\Sale::whereDate('sale_date', $today)
             ->where('status', 'completed')
             ->sum('total');
         
-        $todayCost = \App\Models\SaleItem::whereHas('sale', function($q) use ($todayStart, $todayEnd) {
-                $q->whereBetween('sale_date', [$todayStart, $todayEnd])
-                  ->where('status', 'completed');
-            })
-            ->join('products', 'sale_items.product_id', '=', 'products.id')
+        $todayCost = \App\Models\SaleItem::whereHas('sale', function($q) use ($today) {
+            $q->whereDate('sale_date', $today)->where('status', 'completed');
+        })->join('products', 'sale_items.product_id', '=', 'products.id')
             ->select(\DB::raw('SUM(sale_items.quantity * products.cost_price) as total_cost'))
             ->first()->total_cost ?? 0;
         
         $todayProfit = $todaySales - $todayCost;
         $todayMargin = $todaySales > 0 ? ($todayProfit / $todaySales) * 100 : 0;
         
-        // Monthly Profit & Loss (Full Month)
-        $monthlySales = \App\Models\Sale::whereBetween('sale_date', [$monthStart, $monthEnd])
+        // Monthly Profit & Loss
+        $monthlySales = \App\Models\Sale::whereBetween('sale_date', [$thisMonth, $today])
             ->where('status', 'completed')
             ->sum('total');
         
-        $monthlyCost = \App\Models\SaleItem::whereHas('sale', function($q) use ($monthStart, $monthEnd) {
-                $q->whereBetween('sale_date', [$monthStart, $monthEnd])
-                  ->where('status', 'completed');
-            })
-            ->join('products', 'sale_items.product_id', '=', 'products.id')
+        $monthlyCost = \App\Models\SaleItem::whereHas('sale', function($q) use ($thisMonth, $today) {
+            $q->whereBetween('sale_date', [$thisMonth, $today])->where('status', 'completed');
+        })->join('products', 'sale_items.product_id', '=', 'products.id')
             ->select(\DB::raw('SUM(sale_items.quantity * products.cost_price) as total_cost'))
             ->first()->total_cost ?? 0;
         
         $monthlyProfit = $monthlySales - $monthlyCost;
         $monthlyMargin = $monthlySales > 0 ? ($monthlyProfit / $monthlySales) * 100 : 0;
         
-        // Yearly Profit & Loss (Full Year)
-        $yearlySales = \App\Models\Sale::whereBetween('sale_date', [$yearStart, $yearEnd])
+        // Yearly Profit & Loss
+        $yearlySales = \App\Models\Sale::whereBetween('sale_date', [$thisYear, $today])
             ->where('status', 'completed')
             ->sum('total');
         
-        $yearlyCost = \App\Models\SaleItem::whereHas('sale', function($q) use ($yearStart, $yearEnd) {
-                $q->whereBetween('sale_date', [$yearStart, $yearEnd])
-                  ->where('status', 'completed');
-            })
-            ->join('products', 'sale_items.product_id', '=', 'products.id')
+        $yearlyCost = \App\Models\SaleItem::whereHas('sale', function($q) use ($thisYear, $today) {
+            $q->whereBetween('sale_date', [$thisYear, $today])->where('status', 'completed');
+        })->join('products', 'sale_items.product_id', '=', 'products.id')
             ->select(\DB::raw('SUM(sale_items.quantity * products.cost_price) as total_cost'))
             ->first()->total_cost ?? 0;
         
@@ -112,11 +101,12 @@ class DashboardController extends Controller
         $pendingPayments = \App\Models\Purchase::where('payment_status', '!=', 'paid')->sum('total');
         $totalPurchases = \App\Models\Purchase::sum('total');
         
-        // Top products (current month)
+        // Top products
         $topProducts = DB::table('sale_items')
             ->join('products', 'sale_items.product_id', '=', 'products.id')
             ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
-            ->whereBetween('sales.sale_date', [$monthStart, $monthEnd])
+            ->whereMonth('sales.sale_date', now()->month)
+            ->whereYear('sales.sale_date', now()->year)
             ->where('sales.status', 'completed')
             ->select(
                 'products.name',
