@@ -8,7 +8,7 @@
             {{ __('Product Management') }}
         </h2>
         @can('create products')
-        <a href="{{ route('products.create') }}" class="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-all duration-200 transform hover:scale-105">
+        <a href="{{ route('products.create') }}" class="filter-btn text-white font-bold py-2 px-4 rounded-lg shadow-md transition-all duration-200 transform hover:scale-105">
             + Add New Product
         </a>
         @endcan
@@ -20,16 +20,16 @@
     <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
         <!-- Search and Filter Bar -->
         <div class="bg-white rounded-xl shadow-sm border border-amber-100 p-6 mb-6">
-            <form method="GET" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <form method="GET" class="filter-grid">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Search</label>
+                    <label class="filter-label">Search</label>
                     <input type="text" name="search" placeholder="Name, SKU or barcode..." 
                            value="{{ request('search') }}" 
-                           class="w-full rounded-lg border-gray-300 focus:border-amber-500 focus:ring-amber-500">
+                           class="w-full rounded-lg border-gray-300 focus:border-amber-500 focus:ring-amber-500 filter-input">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Category</label>
-                    <select name="category_id" class="w-full rounded-lg border-gray-300 focus:border-amber-500 focus:ring-amber-500">
+                    <label class="filter-label">Category</label>
+                    <select name="category_id" class="w-full rounded-lg border-gray-300 focus:border-amber-500 focus:ring-amber-500 filter-select">
                         <option value="">All Categories</option>
                         @foreach($categories as $category)
                         <option value="{{ $category->id }}" {{ request('category_id') == $category->id ? 'selected' : '' }}>
@@ -39,21 +39,21 @@
                     </select>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                    <select name="is_active" class="w-full rounded-lg border-gray-300 focus:border-amber-500 focus:ring-amber-500">
+                    <label class="filter-label">Status</label>
+                    <select name="is_active" class="w-full rounded-lg border-gray-300 focus:border-amber-500 focus:ring-amber-500 filter-select">
                         <option value="">All Status</option>
                         <option value="1" {{ request('is_active') == '1' ? 'selected' : '' }}>Active</option>
                         <option value="0" {{ request('is_active') == '0' ? 'selected' : '' }}>Inactive</option>
                     </select>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Stock Filter</label>
-                    <select name="low_stock" class="w-full rounded-lg border-gray-300 focus:border-amber-500 focus:ring-amber-500">
+                    <label class="filter-label">Stock Filter</label>
+                    <select name="low_stock" class="w-full rounded-lg border-gray-300 focus:border-amber-500 focus:ring-amber-500 filter-select">
                         <option value="">All Stock</option>
                         <option value="1" {{ request('low_stock') == '1' ? 'selected' : '' }}>Low Stock Only</option>
                     </select>
                 </div>
-                <div class="flex items-end gap-2">
+                <div class="filter-actions">
                     <button type="submit" class="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg transition-colors">
                         <svg class="w-5 h-5 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>

@@ -42,9 +42,187 @@
         .overflow-auto {
             -webkit-overflow-scrolling: touch;
         }
+        
+        /* ========== FIX: Prevent emoji interference with input fields ========== */
+        
+        /* Ensure inputs have their own independent styling layer */
+        input, select, textarea {
+            font-family: 'Figtree', sans-serif;
+            font-size: 16px !important;
+            position: relative;
+            z-index: 1;
+            background: white !important;
+            color: #1f2937 !important;
+            letter-spacing: normal !important;
+            word-spacing: normal !important;
+        }
+        
+        /* Remove any pseudo-elements that might appear on inputs */
+        input::before, input::after,
+        select::before, select::after,
+        textarea::before, textarea::after {
+            display: none !important;
+            content: none !important;
+        }
+        
+        /* Fix for search input specific issues */
+        input[type="search"] {
+            -webkit-appearance: textfield !important;
+            appearance: textfield !important;
+        }
+        
+        /* Remove default search cancel button that might conflict */
+        input[type="search"]::-webkit-search-cancel-button,
+        input[type="search"]::-webkit-search-decoration {
+            -webkit-appearance: none !important;
+            appearance: none !important;
+            display: none !important;
+        }
+        
+        /* Ensure emoji elements don't affect input layout */
+        .space-y-2 a, .space-y-2 button,
+        .mobile-menu-item, .block.p-3 {
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 8px !important;
+        }
+        
+        /* Make emojis behave like normal text without special positioning */
+        .space-y-2 a, .space-y-2 button {
+            font-family: 'Figtree', 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif !important;
+        }
+        
+        /* Prevent emoji from creating extra space or line-height issues */
+        .space-y-2 a, .space-y-2 button {
+            line-height: 1.5 !important;
+        }
+        
+        /* Fix any potential overflow issues */
+        input, select, textarea {
+            overflow: visible !important;
+        }
     </style>
     
     @stack('styles')
+        <style>
+        /* Simple Dropdown and Input Borders */
+        select, input[type="date"], input[type="text"], input[type="number"], input[type="email"], input[type="tel"], input[type="search"] {
+            border: 2px solid #e5e7eb !important;
+            border-radius: 0.5rem !important;
+            padding: 0.5rem 1rem !important;
+            background-color: white !important;
+            transition: all 0.2s ease !important;
+        }
+        
+        select:focus, input:focus {
+            border-color: #f59e0b !important;
+            outline: none !important;
+            box-shadow: 0 0 0 2px #fde68a !important;
+        }
+        
+        select:hover, input:hover {
+            border-color: #f59e0b !important;
+        }
+        
+        /* Keep your existing filter section styles but remove the specific class requirements */
+        .filter-section {
+            background: white;
+            border-radius: 1rem;
+            border: 1px solid #fef3c7;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .filter-section h3 {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 1rem;
+        }
+        
+        .filter-section .filter-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .filter-section .reset-btn {
+            font-size: 0.875rem;
+            color: #d97706;
+            transition: color 0.2s;
+        }
+        
+        .filter-section .reset-btn:hover {
+            color: #b45309;
+        }
+        
+        .filter-label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 0.5rem;
+        }
+        
+        .filter-actions {
+            display: flex;
+            gap: 0.5rem;
+            align-items: flex-end;
+        }
+        
+        .filter-btn {
+            background: linear-gradient(to right, #f59e0b, #ea580c);
+            color: white;
+            font-weight: 600;
+            padding: 0.5rem 1.5rem;
+            border-radius: 0.5rem;
+            transition: all 0.2s;
+        }
+        
+        .filter-btn:hover {
+            background: linear-gradient(to right, #d97706, #c2410c);
+            transform: scale(1.02);
+        }
+        
+        .clear-btn {
+            background-color: #6b7280;
+            color: white;
+            font-weight: 600;
+            padding: 0.5rem 1.5rem;
+            border-radius: 0.5rem;
+            transition: all 0.2s;
+        }
+        
+        .clear-btn:hover {
+            background-color: #4b5563;
+        }
+        
+        .filter-grid {
+            display: grid;
+            grid-template-columns: repeat(1, minmax(0, 1fr));
+            gap: 1rem;
+        }
+        
+        @media (min-width: 768px) {
+            .filter-grid {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+        }
+        
+        /* Additional fix for mobile menu items with emojis */
+        .space-y-2 a, .space-y-2 button {
+            display: flex !important;
+            align-items: center !important;
+            gap: 0.75rem !important;
+        }
+        
+        /* Ensure emojis display properly without affecting layout */
+        .space-y-2 a, .space-y-2 button {
+            font-size: 0.875rem !important;
+        }
+    </style>
 </head>
 <body class="font-sans antialiased bg-gray-100">
     <div class="min-h-screen pb-16 md:pb-0">
@@ -124,7 +302,7 @@
             </div>
         </div>
         
-        <!-- Mobile Menu Overlay -->
+        <!-- Mobile Menu Overlay - Emojis preserved but styled to not interfere -->
         <div id="mobileMenu" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden md:hidden" onclick="toggleMobileMenu()">
             <div class="absolute bottom-16 left-0 right-0 bg-white rounded-t-2xl max-h-96 overflow-y-auto" onclick="event.stopPropagation()">
                 <div class="p-4">
@@ -171,6 +349,16 @@
                 document.body.style.overflow = '';
             }
         }
+        
+        // Additional fix: Ensure inputs are never affected by emoji styling
+        document.addEventListener('DOMContentLoaded', function() {
+            // Force inputs to have proper font-family
+            const inputs = document.querySelectorAll('input, select, textarea');
+            inputs.forEach(input => {
+                input.style.fontFamily = "'Figtree', sans-serif";
+                input.style.fontWeight = 'normal';
+            });
+        });
     </script>
     
     @stack('scripts')

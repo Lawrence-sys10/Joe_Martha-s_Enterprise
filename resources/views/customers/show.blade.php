@@ -26,15 +26,17 @@
 @section('content')
 <div class="py-12">
     <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-        @if(session('success'))
-        <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-6 rounded-lg shadow-md">
-            <div class="flex items-center">
-                <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+       @if(session('success'))
+        <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-6 rounded-lg shadow-md" id="success-message">
+            <div class="flex items-start">
+                <svg class="w-6 h-6 mr-2 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
-                <span>{{ session('success') }}</span>
-            </div>
+            <div class="flex-1">
+            {{ session('success') }}
         </div>
+    </div>
+    </div>
         @endif
 
         @if(session('error'))
@@ -51,7 +53,7 @@
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <!-- Customer Info Card -->
             <div class="lg:col-span-1">
-                <div class="bg-white rounded-2xl shadow-xl border border-amber-100 overflow-hidden">
+                <div class="bg-white rounded-2xl shadow-xl border border-amber-100 overflow-hidden sticky top-24">
                     <div class="bg-gradient-to-r from-amber-50 to-orange-50 p-6 text-center">
                         <div class="w-24 h-24 bg-gradient-to-br from-amber-500 to-orange-600 rounded-full flex items-center justify-center mx-auto shadow-lg">
                             <span class="text-3xl font-bold text-white">{{ strtoupper(substr($customer->name, 0, 1)) }}</span>
@@ -119,28 +121,21 @@
                     </div>
                     
                     <div class="p-6">
-                        @php
-                            // Get credit sales (unpaid or partially paid)
-                            $creditSales = $customer->sales->filter(function($sale) {
-                                return $sale->payment_status !== 'paid' && $sale->total > $sale->paid_amount;
-                            });
-                            
-                            $paidSales = $customer->sales->filter(function($sale) {
-                                return $sale->payment_status === 'paid';
-                            });
-                        @endphp
-                        
-                        <!-- Outstanding Credit Items -->
+                        <!-- Outstanding Credit Items (only pending/partial) -->
                         @if($creditSales->count() > 0)
                         <div class="mb-8">
                             <h4 class="text-md font-bold text-red-600 mb-4 flex items-center gap-2">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                 </svg>
-                                Outstanding Credit Items
+                                Outstanding Credit Items ({{ $creditSales->count() }})
                             </h4>
                             
                             @foreach($creditSales as $sale)
+                            @php
+                                $paidAmount = $sale->paid_amount;
+                                $remainingBalance = $sale->total - $paidAmount;
+                            @endphp
                             <div class="bg-red-50 rounded-xl p-4 mb-4 border border-red-200">
                                 <div class="flex justify-between items-start mb-3">
                                     <div>
@@ -154,6 +149,7 @@
                                 </div>
                                 
                                 <!-- Items List -->
+                                @if($sale->items && $sale->items->count() > 0)
                                 <div class="mb-3">
                                     <p class="text-xs font-semibold text-gray-600 mb-2">Items:</p>
                                     @foreach($sale->items as $item)
@@ -164,18 +160,19 @@
                                     </div>
                                     @endforeach
                                 </div>
+                                @endif
                                 
                                 <div class="border-t border-red-200 pt-3 mt-2">
                                     <div class="flex justify-between items-center mb-2">
                                         <span class="text-sm text-gray-600">Paid Amount:</span>
-                                        <span class="text-sm font-semibold text-green-600">GHS {{ number_format($sale->paid_amount, 2) }}</span>
+                                        <span class="text-sm font-semibold text-green-600">GHS {{ number_format($paidAmount, 2) }}</span>
                                     </div>
                                     <div class="flex justify-between items-center mb-3">
                                         <span class="text-sm font-bold text-gray-700">Remaining Balance:</span>
-                                        <span class="text-md font-bold text-red-600">GHS {{ number_format($sale->total - $sale->paid_amount, 2) }}</span>
+                                        <span class="text-md font-bold text-red-600">GHS {{ number_format($remainingBalance, 2) }}</span>
                                     </div>
                                     
-                                    <!-- Payment Form -->
+                                    @if($remainingBalance > 0)
                                     <form action="{{ route('customers.pay', $customer) }}" method="POST" class="mt-3">
                                         @csrf
                                         <input type="hidden" name="sale_id" value="{{ $sale->id }}">
@@ -183,7 +180,14 @@
                                             <div class="flex-1">
                                                 <input type="number" name="amount" placeholder="Enter payment amount" 
                                                        class="w-full rounded-lg border-gray-300 focus:border-amber-500 focus:ring-amber-500"
-                                                       step="0.01" max="{{ $sale->total - $sale->paid_amount }}" required>
+                                                       step="0.01" max="{{ $remainingBalance }}" required>
+                                            </div>
+                                            <div class="flex-1">
+                                                <select name="payment_method" class="w-full rounded-lg border-gray-300 focus:border-amber-500 focus:ring-amber-500" required>
+                                                    <option value="cash">Cash</option>
+                                                    <option value="mobile_money">Mobile Money</option>
+                                                    <option value="bank">Bank Transfer</option>
+                                                </select>
                                             </div>
                                             <button type="submit" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-all flex items-center gap-2">
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -193,8 +197,14 @@
                                             </button>
                                         </div>
                                     </form>
+                                    @else
+                                    <div class="mt-3 text-center">
+                                        <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                                            ✓ Fully Paid
+                                        </span>
+                                    </div>
+                                    @endif
                                     
-                                    <!-- Print Receipt Button -->
                                     <div class="flex justify-end mt-2">
                                         <a href="{{ route('sales.receipt', $sale->id) }}" target="_blank" 
                                            class="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 text-sm transition-colors bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg">
@@ -210,29 +220,38 @@
                         </div>
                         @endif
                         
-                        <!-- Paid Transactions -->
+                        <!-- Paid Transactions (Fully Paid Sales) -->
                         <div>
                             <h4 class="text-md font-bold text-green-600 mb-4 flex items-center gap-2">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                 </svg>
-                                Paid Transactions
+                                Transaction History ({{ $paidSales->count() + $cashSales->count() }})
                             </h4>
                             
-                            @if($paidSales->count() > 0)
+                            @if($paidSales->count() > 0 || $cashSales->count() > 0)
                             <div class="space-y-3">
-                                @foreach($paidSales->take(10) as $sale)
+                                @php
+                                    $allPaidTransactions = $paidSales->merge($cashSales)->sortByDesc('created_at');
+                                @endphp
+                                @foreach($allPaidTransactions as $sale)
                                 <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                                     <div class="flex-1">
                                         <div class="flex items-center gap-3">
                                             <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
                                                 <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                                 </svg>
                                             </div>
                                             <div>
                                                 <p class="font-medium text-gray-800">{{ $sale->invoice_number }}</p>
                                                 <p class="text-xs text-gray-500">{{ $sale->created_at->format('M d, Y H:i') }}</p>
+                                                <p class="text-xs text-gray-400">
+                                                    {{ ucfirst(str_replace('_', ' ', $sale->payment_method)) }}
+                                                    @if($sale->payment_method == 'credit')
+                                                    • Paid: GHS {{ number_format($sale->paid_amount, 2) }}
+                                                    @endif
+                                                </p>
                                                 @if($sale->items && $sale->items->count() > 0)
                                                 <p class="text-xs text-gray-400 mt-1">
                                                     {{ $sale->items->take(2)->pluck('product.name')->implode(', ') }}
@@ -255,20 +274,11 @@
                                 <svg class="w-12 h-12 text-gray-300 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                                 </svg>
-                                <p class="text-gray-500">No paid transactions yet</p>
+                                <p class="text-gray-500">No transaction history</p>
+                                <p class="text-sm text-gray-400 mt-1">This customer hasn't made any purchases yet</p>
                             </div>
                             @endif
                         </div>
-                        
-                        @if($creditSales->count() == 0 && $paidSales->count() == 0)
-                        <div class="text-center py-12">
-                            <svg class="w-16 h-16 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                            </svg>
-                            <p class="text-gray-500">No purchase history</p>
-                            <p class="text-sm text-gray-400 mt-1">This customer hasn't made any purchases yet</p>
-                        </div>
-                        @endif
                     </div>
                 </div>
             </div>
@@ -278,21 +288,35 @@
 
 @push('scripts')
 <script>
-    // Auto-calculate change when amount is entered (if needed)
-    document.addEventListener('DOMContentLoaded', function() {
-        const paymentInputs = document.querySelectorAll('input[name="amount"]');
-        paymentInputs.forEach(input => {
-            input.addEventListener('input', function() {
-                const max = parseFloat(this.getAttribute('max'));
-                let value = parseFloat(this.value);
-                if (value > max) {
-                    alert('Payment cannot exceed remaining balance of GHS ' + max.toFixed(2));
-                    this.value = max;
+    // Prevent form resubmission on page refresh
+    if (window.history.replaceState) {
+        window.history.replaceState(null, null, window.location.href);
+    }
+    
+    // Auto-hide success message after 3 seconds
+    const successMessage = document.getElementById('success-message');
+    if (successMessage) {
+        setTimeout(function() {
+            successMessage.style.transition = 'opacity 0.5s ease';
+            successMessage.style.opacity = '0';
+            setTimeout(function() {
+                if (successMessage && successMessage.parentNode) {
+                    successMessage.remove();
                 }
-            });
+            }, 500);
+        }, 3000);
+    }
+    
+    // Disable submit buttons to prevent double submission
+    document.querySelectorAll('form[action*="pay"]').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            const submitBtn = this.querySelector('button[type="submit"]');
+            if (submitBtn && !submitBtn.disabled) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<svg class="w-4 h-4 animate-spin mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>Processing...';
+            }
         });
     });
 </script>
 @endpush
 @endsection
-

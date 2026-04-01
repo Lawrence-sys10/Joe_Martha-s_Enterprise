@@ -35,17 +35,18 @@ class ExpenseController extends Controller
 
     public function create()
     {
+        // Removed emojis to prevent input field conflicts
         $categories = [
-            'Rent' => '🏢 Rent',
-            'Utilities' => '💡 Utilities',
-            'Salaries' => '👥 Salaries',
-            'Transport' => '🚗 Transport',
-            'Maintenance' => '🔧 Maintenance',
-            'Marketing' => '📢 Marketing',
-            'Office Supplies' => '📎 Office Supplies',
-            'Taxes' => '📑 Taxes',
-            'Insurance' => '🛡️ Insurance',
-            'Other' => '📝 Other'
+            'Rent' => 'Rent',
+            'Utilities' => 'Utilities',
+            'Salaries' => 'Salaries',
+            'Transport' => 'Transport',
+            'Maintenance' => 'Maintenance',
+            'Marketing' => 'Marketing',
+            'Office Supplies' => 'Office Supplies',
+            'Taxes' => 'Taxes',
+            'Insurance' => 'Insurance',
+            'Other' => 'Other'
         ];
         
         return view('expenses.create', compact('categories'));
@@ -86,17 +87,18 @@ class ExpenseController extends Controller
 
     public function edit(Expense $expense)
     {
+        // Removed emojis to prevent input field conflicts
         $categories = [
-            'Rent' => '🏢 Rent',
-            'Utilities' => '💡 Utilities',
-            'Salaries' => '👥 Salaries',
-            'Transport' => '🚗 Transport',
-            'Maintenance' => '🔧 Maintenance',
-            'Marketing' => '📢 Marketing',
-            'Office Supplies' => '📎 Office Supplies',
-            'Taxes' => '📑 Taxes',
-            'Insurance' => '🛡️ Insurance',
-            'Other' => '📝 Other'
+            'Rent' => 'Rent',
+            'Utilities' => 'Utilities',
+            'Salaries' => 'Salaries',
+            'Transport' => 'Transport',
+            'Maintenance' => 'Maintenance',
+            'Marketing' => 'Marketing',
+            'Office Supplies' => 'Office Supplies',
+            'Taxes' => 'Taxes',
+            'Insurance' => 'Insurance',
+            'Other' => 'Other'
         ];
         
         return view('expenses.edit', compact('expense', 'categories'));

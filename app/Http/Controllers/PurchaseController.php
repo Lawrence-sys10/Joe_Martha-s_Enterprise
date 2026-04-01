@@ -7,6 +7,7 @@ use App\Models\PurchaseItem;
 use App\Models\PurchasePayment;
 use App\Models\Supplier;
 use App\Models\Product;
+use App\Models\StockMovement;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
@@ -26,6 +27,10 @@ class PurchaseController extends Controller
             $query->where('status', $request->status);
         }
         
+        if ($request->get('payment_status')) {
+            $query->where('payment_status', $request->payment_status);
+        }
+        
         if ($request->get('start_date')) {
             $query->whereDate('purchase_date', '>=', $request->start_date);
         }
@@ -40,7 +45,7 @@ class PurchaseController extends Controller
         return view('purchases.index', compact('purchases', 'suppliers'));
     }
 
-        public function create()
+    public function create()
     {
         return redirect()->route('suppliers.index')
             ->with('info', 'Please select a supplier first to create a purchase order.');
@@ -56,7 +61,8 @@ class PurchaseController extends Controller
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity' => 'required|integer|min:1',
-            'items.*.unit_price' => 'required|numeric|min:0',
+            'items.*.cost_price' => 'required|numeric|min:0', // This is what you pay the supplier
+            'items.*.unit_price' => 'required|numeric|min:0', // This is what customers will pay
         ]);
 
         if ($validator->fails()) {
@@ -69,13 +75,14 @@ class PurchaseController extends Controller
             // Generate invoice number
             $invoiceNumber = $this->generateInvoiceNumber();
             
-            // Calculate totals
+            // Calculate totals using COST PRICE (what you pay the supplier)
             $subtotal = 0;
             $tax = 0;
             
             foreach ($request->items as $item) {
-                $itemTotal = $item['quantity'] * $item['unit_price'];
-                $itemTax = $itemTotal * 0.125; // 12.5% tax
+                // IMPORTANT: Use cost_price for purchase total
+                $itemTotal = $item['quantity'] * $item['cost_price'];
+                $itemTax = $itemTotal * 0.125;
                 $subtotal += $itemTotal;
                 $tax += $itemTax;
             }
@@ -97,38 +104,64 @@ class PurchaseController extends Controller
                 'user_id' => auth()->id(),
             ]);
             
-            // Create purchase items and update stock
+            // Create purchase items and update product
             foreach ($request->items as $item) {
+                $itemTotal = $item['quantity'] * $item['cost_price'];
+                
                 PurchaseItem::create([
                     'purchase_id' => $purchase->id,
                     'product_id' => $item['product_id'],
                     'quantity' => $item['quantity'],
-                    'unit_price' => $item['unit_price'],
-                    'total' => $item['quantity'] * $item['unit_price'],
+                    'cost_price' => $item['cost_price'], // Purchase price from supplier
+                    'unit_price' => $item['unit_price'], // Selling price to customers
+                    'total' => $itemTotal,
                     'expiry_date' => $item['expiry_date'] ?? null,
                 ]);
                 
-                // Update product stock
+                // Update product
                 $product = Product::find($item['product_id']);
+                $oldStock = $product->stock_quantity;
+                $oldCostPrice = $product->cost_price;
+                
+                // Update stock quantity
                 $product->stock_quantity += $item['quantity'];
                 
-                // Update cost price (weighted average)
+                // Update cost price using weighted average (based on purchase cost)
                 if ($product->stock_quantity > 0) {
-                    $newTotalCost = ($product->cost_price * ($product->stock_quantity - $item['quantity'])) + ($item['unit_price'] * $item['quantity']);
+                    $oldTotalCost = $oldCostPrice * $oldStock;
+                    $newTotalCost = $oldTotalCost + ($item['cost_price'] * $item['quantity']);
                     $product->cost_price = $newTotalCost / $product->stock_quantity;
                 }
+                
+                // Update unit price (selling price) - this is the NEW selling price
+                $product->unit_price = $item['unit_price'];
+                
                 $product->save();
+                
+                // Record stock movement
+                StockMovement::create([
+                    'product_id' => $product->id,
+                    'type' => StockMovement::TYPE_PURCHASE,
+                    'quantity' => $item['quantity'],
+                    'before_quantity' => $oldStock,
+                    'after_quantity' => $product->stock_quantity,
+                    'reference_type' => Purchase::class,
+                    'reference_id' => $purchase->id,
+                    'notes' => "Purchase: Cost GHS {$item['cost_price']} | Sell GHS {$item['unit_price']} | Qty: {$item['quantity']}",
+                    'user_id' => auth()->id(),
+                ]);
             }
             
-            // Update supplier balance
+            // Update supplier balance (what you owe the supplier) - based on COST PRICE
             $supplier = Supplier::find($request->supplier_id);
-            $supplier->current_balance += $total;
+            $supplier->current_balance += $total; // Total is based on cost_price
             $supplier->save();
             
             DB::commit();
             
             return redirect()->route('purchases.show', $purchase)
-                ->with('success', 'Purchase order created successfully!');
+                ->with('success', 'Purchase order created successfully! Invoice: ' . $invoiceNumber);
+                
         } catch (\Exception $e) {
             DB::rollBack();
             return redirect()->back()
@@ -139,8 +172,13 @@ class PurchaseController extends Controller
 
     public function show(Purchase $purchase)
     {
-        $purchase->load('supplier', 'user', 'items.product');
-        return view('purchases.show', compact('purchase'));
+        $purchase->load('supplier', 'user', 'items.product', 'payments');
+        
+        // Calculate paid amount and balance
+        $paidAmount = $purchase->payments()->sum('amount');
+        $balance = $purchase->total - $paidAmount;
+        
+        return view('purchases.show', compact('purchase', 'paidAmount', 'balance'));
     }
 
     public function edit(Purchase $purchase)
@@ -162,7 +200,6 @@ class PurchaseController extends Controller
                 ->with('error', 'Cannot update completed or cancelled purchases.');
         }
         
-        // Similar to store but for update
         return redirect()->route('purchases.index')
             ->with('info', 'Update functionality coming soon.');
     }
@@ -177,13 +214,27 @@ class PurchaseController extends Controller
         try {
             DB::beginTransaction();
             
-            // Restore stock and supplier balance
+            // Restore stock
             foreach ($purchase->items as $item) {
                 $product = $item->product;
+                $oldStock = $product->stock_quantity;
                 $product->stock_quantity -= $item->quantity;
                 $product->save();
+                
+                StockMovement::create([
+                    'product_id' => $product->id,
+                    'type' => StockMovement::TYPE_RETURN,
+                    'quantity' => $item->quantity,
+                    'before_quantity' => $oldStock,
+                    'after_quantity' => $product->stock_quantity,
+                    'reference_type' => Purchase::class,
+                    'reference_id' => $purchase->id,
+                    'notes' => "Purchase order deleted #{$purchase->invoice_number}",
+                    'user_id' => auth()->id(),
+                ]);
             }
             
+            // Restore supplier balance
             $supplier = $purchase->supplier;
             $supplier->current_balance -= $purchase->total;
             $supplier->save();
@@ -231,10 +282,15 @@ class PurchaseController extends Controller
         try {
             DB::beginTransaction();
             
-            // Generate payment number
+            $currentPaid = $purchase->payments()->sum('amount');
+            $newPaid = $currentPaid + $request->amount;
+            
+            if ($request->amount > ($purchase->total - $currentPaid)) {
+                return redirect()->back()->with('error', 'Payment amount cannot exceed remaining balance.');
+            }
+            
             $paymentNumber = 'PPMT-' . date('Ymd') . '-' . str_pad(rand(1, 9999), 4, '0', STR_PAD_LEFT);
             
-            // Create payment
             $payment = PurchasePayment::create([
                 'purchase_id' => $purchase->id,
                 'payment_number' => $paymentNumber,
@@ -246,15 +302,25 @@ class PurchaseController extends Controller
                 'user_id' => auth()->id(),
             ]);
             
-            // Update supplier balance
+            if ($newPaid >= $purchase->total) {
+                $purchase->payment_status = 'paid';
+                $purchase->status = 'completed';
+            } else {
+                $purchase->payment_status = 'partial';
+                $purchase->status = 'pending';
+            }
+            $purchase->save();
+            
             $supplier = $purchase->supplier;
             $supplier->current_balance -= $request->amount;
             $supplier->save();
             
             DB::commit();
             
+            $statusMessage = $newPaid >= $purchase->total ? 'fully paid' : 'partially paid';
             return redirect()->route('purchases.show', $purchase)
-                ->with('success', 'Payment recorded successfully!');
+                ->with('success', "Payment of GHS " . number_format($request->amount, 2) . " recorded successfully! Purchase is now {$statusMessage}.");
+                
         } catch (\Exception $e) {
             DB::rollBack();
             return redirect()->back()

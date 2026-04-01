@@ -5,113 +5,108 @@ namespace App\Services;
 use App\Models\Sale;
 use App\Models\Purchase;
 use App\Models\Expense;
-use App\Models\CustomerPayment;
-use App\Models\SupplierPayment;
+use App\Models\Customer;
+use App\Models\Supplier;
 use Illuminate\Support\Facades\DB;
 
 class CashBalanceService
 {
+    /**
+     * Get current cash balance (simplified)
+     */
     public function getCurrentBalance()
     {
-        // Cash Inflows
-        $cashSales = Sale::where('payment_method', 'cash')
-            ->where('status', 'completed')
-            ->sum('paid_amount');
-            
-        $mobileSales = Sale::where('payment_method', 'mobile_money')
-            ->where('status', 'completed')
-            ->sum('paid_amount');
-            
-        $customerPayments = CustomerPayment::sum('amount');
+        // Get all completed sales (both cash and credit)
+        $sales = Sale::where('status', 'completed')->sum('paid_amount');
         
-        // Cash Outflows - Purchases don't have payment_method, so we use all purchases
-        $totalPurchases = Purchase::where('status', 'completed')
-            ->sum('total');
-            
-        $supplierPayments = SupplierPayment::sum('amount');
+        // Get all purchases
+        $purchases = Purchase::where('status', 'completed')->sum('total');
+        
+        // Get expenses
         $expenses = Expense::sum('amount');
         
-        $totalInflow = $cashSales + $mobileSales + $customerPayments;
-        $totalOutflow = $totalPurchases + $supplierPayments + $expenses;
-        
-        return [
-            'balance' => $totalInflow - $totalOutflow,
-            'cash_balance' => $cashSales,
-            'mobile_balance' => $mobileSales,
-            'inflow' => [
-                'sales' => $cashSales + $mobileSales,
-                'customer_payments' => $customerPayments,
-                'total' => $totalInflow
-            ],
-            'outflow' => [
-                'purchases' => $totalPurchases,
-                'supplier_payments' => $supplierPayments,
-                'expenses' => $expenses,
-                'total' => $totalOutflow
-            ]
-        ];
+        return $sales - $purchases - $expenses;
     }
     
+    /**
+     * Get cash flow statement for a date range
+     */
     public function getCashFlowStatement($startDate, $endDate)
     {
-        // Operating Activities
-        $cashSales = Sale::whereBetween('sale_date', [$startDate, $endDate])
-            ->where('payment_method', 'cash')
+        // Convert to datetime
+        $startDateTime = \Carbon\Carbon::parse($startDate)->startOfDay();
+        $endDateTime = \Carbon\Carbon::parse($endDate)->endOfDay();
+        
+        // Opening balance (balance before start date)
+        $openingBalance = $this->getBalanceBeforeDate($startDateTime);
+        
+        // Operating Activities - Cash Inflows (All completed sales in period)
+        $cashSales = Sale::whereBetween('sale_date', [$startDateTime, $endDateTime])
             ->where('status', 'completed')
             ->sum('paid_amount');
-            
-        $customerReceipts = CustomerPayment::whereBetween('payment_date', [$startDate, $endDate])
-            ->sum('amount');
-            
-        $totalPurchases = Purchase::whereBetween('purchase_date', [$startDate, $endDate])
+        
+        $customerReceipts = 0; // This can be calculated from payments if you have a payments table
+        
+        $totalInflow = $cashSales + $customerReceipts;
+        
+        // Operating Activities - Cash Outflows
+        $purchases = Purchase::whereBetween('purchase_date', [$startDateTime, $endDateTime])
             ->where('status', 'completed')
             ->sum('total');
-            
-        $supplierPayments = SupplierPayment::whereBetween('payment_date', [$startDate, $endDate])
-            ->sum('amount');
-            
-        $expenses = Expense::whereBetween('expense_date', [$startDate, $endDate])
+        
+        $supplierPayments = 0; // This can be calculated from purchase payments if you have a purchase_payments table
+        
+        $expenses = Expense::whereBetween('expense_date', [$startDateTime, $endDateTime])
             ->sum('amount');
         
-        $netOperatingCash = ($cashSales + $customerReceipts) - ($totalPurchases + $supplierPayments + $expenses);
+        $totalOutflow = $purchases + $supplierPayments + $expenses;
+        
+        // Net cash flow
+        $netCashFlow = $totalInflow - $totalOutflow;
+        $closingBalance = $openingBalance + $netCashFlow;
         
         return [
-            'period' => [
-                'start' => $startDate,
-                'end' => $endDate
+            'summary' => [
+                'opening_balance' => $openingBalance,
+                'net_cash_flow' => $netCashFlow,
+                'closing_balance' => $closingBalance,
+                'period' => [
+                    'start' => $startDate,
+                    'end' => $endDate
+                ]
             ],
             'operating_activities' => [
                 'cash_sales' => $cashSales,
                 'customer_receipts' => $customerReceipts,
-                'total_inflow' => $cashSales + $customerReceipts,
-                'purchases' => $totalPurchases,
+                'total_inflow' => $totalInflow,
+                'purchases' => $purchases,
                 'supplier_payments' => $supplierPayments,
                 'expenses' => $expenses,
-                'total_outflow' => $totalPurchases + $supplierPayments + $expenses,
-                'net_cash' => $netOperatingCash
-            ],
-            'summary' => [
-                'net_cash_flow' => $netOperatingCash,
-                'opening_balance' => $this->getBalanceAtDate($startDate),
-                'closing_balance' => $this->getBalanceAtDate($endDate)
+                'total_outflow' => $totalOutflow,
+                'net_cash' => $netCashFlow
             ]
         ];
     }
     
-    private function getBalanceAtDate($date)
+    /**
+     * Get balance before a specific date
+     */
+    private function getBalanceBeforeDate($dateTime)
     {
-        // Calculate balance up to a specific date
-        $sales = Sale::whereDate('sale_date', '<=', $date)
+        // Get sales before date
+        $sales = Sale::where('sale_date', '<', $dateTime)
             ->where('status', 'completed')
             ->sum('paid_amount');
-            
-        $purchases = Purchase::whereDate('purchase_date', '<=', $date)
+        
+        // Get purchases before date
+        $purchases = Purchase::where('purchase_date', '<', $dateTime)
             ->where('status', 'completed')
             ->sum('total');
-            
-        $expenses = Expense::whereDate('expense_date', '<=', $date)
+        
+        // Get expenses before date
+        $expenses = Expense::where('expense_date', '<', $dateTime)
             ->sum('amount');
-            
+        
         return $sales - $purchases - $expenses;
     }
 }

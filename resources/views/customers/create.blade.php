@@ -28,36 +28,42 @@
             <form method="POST" action="{{ route('customers.store') }}" id="customerForm">
                 @csrf
                 
-                <div class="p-8 space-y-8">
+                <div class="p-8">
                     <!-- Progress Indicator -->
                     <div class="flex justify-between mb-8">
                         <div class="flex-1 text-center">
-                            <div class="w-8 h-8 bg-amber-500 text-white rounded-full flex items-center justify-center mx-auto mb-2">1</div>
-                            <p class="text-xs text-gray-600">Basic Info</p>
+                            <div class="w-10 h-10 bg-amber-500 text-white rounded-full flex items-center justify-center mx-auto mb-2 shadow-md">
+                                <span class="text-sm font-bold">1</span>
+                            </div>
+                            <p class="text-xs font-medium text-gray-600">Basic Info</p>
                         </div>
                         <div class="flex-1 text-center">
-                            <div class="w-8 h-8 bg-gray-200 text-gray-500 rounded-full flex items-center justify-center mx-auto mb-2">2</div>
-                            <p class="text-xs text-gray-500">Financial</p>
+                            <div class="w-10 h-10 bg-gray-200 text-gray-500 rounded-full flex items-center justify-center mx-auto mb-2">
+                                <span class="text-sm font-bold">2</span>
+                            </div>
+                            <p class="text-xs font-medium text-gray-500">Financial</p>
                         </div>
                         <div class="flex-1 text-center">
-                            <div class="w-8 h-8 bg-gray-200 text-gray-500 rounded-full flex items-center justify-center mx-auto mb-2">3</div>
-                            <p class="text-xs text-gray-500">Additional</p>
+                            <div class="w-10 h-10 bg-gray-200 text-gray-500 rounded-full flex items-center justify-center mx-auto mb-2">
+                                <span class="text-sm font-bold">3</span>
+                            </div>
+                            <p class="text-xs font-medium text-gray-500">Additional</p>
                         </div>
                     </div>
                     
                     <!-- Basic Information Section -->
-                    <div class="section" id="section-basic">
-                        <div class="flex items-center gap-3 mb-6">
-                            <div class="w-10 h-10 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl flex items-center justify-center">
+                    <div class="mb-8">
+                        <div class="flex items-center gap-3 mb-6 pb-2 border-b border-gray-200">
+                            <div class="w-10 h-10 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl flex items-center justify-center shadow-md">
                                 <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
                                 </svg>
                             </div>
-                            <h3 class="text-xl font-bold text-gray-800">Basic Information</h3>
+                            <h3 class="text-lg font-semibold text-gray-800">Basic Information</h3>
                         </div>
                         
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div class="group">
+                            <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">
                                     Full Name <span class="text-red-500">*</span>
                                 </label>
@@ -68,14 +74,12 @@
                                         </svg>
                                     </div>
                                     <input type="text" name="name" value="{{ old('name') }}" required
-                                           class="pl-10 w-full rounded-xl border-2 border-gray-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all duration-200">
+                                           class="pl-10 w-full rounded-lg border-2 border-gray-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all duration-200 py-2.5">
                                 </div>
-                                @error('name')
-                                    <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
-                                @enderror
+                                @error('name')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
                             </div>
                             
-                            <div class="group">
+                            <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
                                 <div class="relative">
                                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -84,14 +88,12 @@
                                         </svg>
                                     </div>
                                     <input type="email" name="email" value="{{ old('email') }}"
-                                           class="pl-10 w-full rounded-xl border-2 border-gray-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all duration-200">
+                                           class="pl-10 w-full rounded-lg border-2 border-gray-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all duration-200 py-2.5">
                                 </div>
-                                @error('email')
-                                    <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
-                                @enderror
+                                @error('email')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
                             </div>
                             
-                            <div class="group">
+                            <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
                                 <div class="relative">
                                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -100,14 +102,12 @@
                                         </svg>
                                     </div>
                                     <input type="text" name="phone" value="{{ old('phone') }}"
-                                           class="pl-10 w-full rounded-xl border-2 border-gray-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all duration-200">
+                                           class="pl-10 w-full rounded-lg border-2 border-gray-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all duration-200 py-2.5">
                                 </div>
-                                @error('phone')
-                                    <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
-                                @enderror
+                                @error('phone')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
                             </div>
                             
-                            <div class="group">
+                            <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Tax Number (TIN)</label>
                                 <div class="relative">
                                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -116,11 +116,9 @@
                                         </svg>
                                     </div>
                                     <input type="text" name="tax_number" value="{{ old('tax_number') }}"
-                                           class="pl-10 w-full rounded-xl border-2 border-gray-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all duration-200">
+                                           class="pl-10 w-full rounded-lg border-2 border-gray-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all duration-200 py-2.5">
                                 </div>
-                                @error('tax_number')
-                                    <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
-                                @enderror
+                                @error('tax_number')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
                             </div>
                         </div>
                         
@@ -134,67 +132,57 @@
                                     </svg>
                                 </div>
                                 <textarea name="address" rows="3" 
-                                          class="pl-10 w-full rounded-xl border-2 border-gray-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all duration-200">{{ old('address') }}</textarea>
+                                          class="pl-10 w-full rounded-lg border-2 border-gray-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all duration-200">{{ old('address') }}</textarea>
                             </div>
-                            @error('address')
-                                <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
-                            @enderror
+                            @error('address')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
                         </div>
                     </div>
                     
                     <!-- Financial Information Section -->
-                    <div class="section" id="section-financial">
-                        <div class="flex items-center gap-3 mb-6">
-                            <div class="w-10 h-10 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-xl flex items-center justify-center">
+                    <div class="mb-8">
+                        <div class="flex items-center gap-3 mb-6 pb-2 border-b border-gray-200">
+                            <div class="w-10 h-10 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-xl flex items-center justify-center shadow-md">
                                 <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                 </svg>
                             </div>
-                            <h3 class="text-xl font-bold text-gray-800">Financial Information</h3>
+                            <h3 class="text-lg font-semibold text-gray-800">Financial Information</h3>
                         </div>
                         
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div class="group">
+                            <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Opening Balance (GHS)</label>
                                 <div class="relative">
-                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <span class="text-gray-400 font-semibold">₵</span>
-                                    </div>
+                                    <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">₵</span>
                                     <input type="number" name="opening_balance" value="{{ old('opening_balance', 0) }}" step="0.01"
-                                           class="pl-8 w-full rounded-xl border-2 border-gray-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all duration-200">
+                                           class="pl-7 w-full rounded-lg border-2 border-gray-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all duration-200 py-2.5">
                                 </div>
                                 <p class="text-xs text-gray-500 mt-1">Initial balance if customer owes money</p>
-                                @error('opening_balance')
-                                    <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
-                                @enderror
+                                @error('opening_balance')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
                             </div>
                             
-                            <div class="group">
+                            <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Credit Limit (GHS)</label>
                                 <div class="relative">
-                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <span class="text-gray-400 font-semibold">₵</span>
-                                    </div>
+                                    <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">₵</span>
                                     <input type="number" name="credit_limit" value="{{ old('credit_limit') }}" step="0.01"
-                                           class="pl-8 w-full rounded-xl border-2 border-gray-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all duration-200">
+                                           class="pl-7 w-full rounded-lg border-2 border-gray-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all duration-200 py-2.5">
                                 </div>
                                 <p class="text-xs text-gray-500 mt-1">Maximum credit allowed (leave blank for unlimited)</p>
-                                @error('credit_limit')
-                                    <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
-                                @enderror
+                                @error('credit_limit')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
                             </div>
                         </div>
                     </div>
                     
                     <!-- Additional Information Section -->
-                    <div class="section" id="section-additional">
-                        <div class="flex items-center gap-3 mb-6">
-                            <div class="w-10 h-10 bg-gradient-to-br from-purple-400 to-pink-500 rounded-xl flex items-center justify-center">
+                    <div class="mb-6">
+                        <div class="flex items-center gap-3 mb-6 pb-2 border-b border-gray-200">
+                            <div class="w-10 h-10 bg-gradient-to-br from-purple-400 to-pink-500 rounded-xl flex items-center justify-center shadow-md">
                                 <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                 </svg>
                             </div>
-                            <h3 class="text-xl font-bold text-gray-800">Additional Information</h3>
+                            <h3 class="text-lg font-semibold text-gray-800">Additional Information</h3>
                         </div>
                         
                         <div>
@@ -206,35 +194,33 @@
                                     </svg>
                                 </div>
                                 <textarea name="notes" rows="3" 
-                                          class="pl-10 w-full rounded-xl border-2 border-gray-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all duration-200">{{ old('notes') }}</textarea>
+                                          class="pl-10 w-full rounded-lg border-2 border-gray-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all duration-200">{{ old('notes') }}</textarea>
                             </div>
-                            @error('notes')
-                                <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
-                            @enderror
+                            @error('notes')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
                         </div>
                         
                         <div class="mt-6">
                             <label class="inline-flex items-center cursor-pointer">
                                 <input type="checkbox" name="is_active" value="1" {{ old('is_active', true) ? 'checked' : '' }}
-                                       class="rounded border-gray-300 text-amber-500 focus:ring-amber-500 w-5 h-5">
+                                       class="rounded border-gray-300 text-amber-500 focus:ring-amber-500 w-4 h-4">
                                 <span class="ml-3 text-sm text-gray-700">Active Customer</span>
                             </label>
-                            <p class="text-xs text-gray-500 mt-1 ml-8">Active customers can make purchases and use credit</p>
+                            <p class="text-xs text-gray-500 mt-1 ml-7">Active customers can make purchases and use credit</p>
                         </div>
                     </div>
                 </div>
                 
                 <!-- Form Actions -->
-                <div class="bg-gradient-to-r from-gray-50 to-gray-100 px-8 py-4 border-t border-gray-200">
+                <div class="bg-gray-50 px-8 py-5 border-t border-gray-200">
                     <div class="flex justify-between items-center">
                         <div class="text-sm text-gray-500">
                             <span class="text-red-500">*</span> Required fields
                         </div>
                         <div class="flex gap-3">
-                            <a href="{{ route('customers.index') }}" class="px-6 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 font-semibold rounded-xl transition-all duration-200">
+                            <a href="{{ route('customers.index') }}" class="px-6 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-lg transition-all duration-200">
                                 Cancel
                             </a>
-                            <button type="submit" class="px-6 py-2 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-semibold rounded-xl shadow-md transition-all transform hover:scale-105 flex items-center gap-2">
+                            <button type="submit" class="px-6 py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-medium rounded-lg shadow-md transition-all flex items-center gap-2">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
                                 </svg>
@@ -250,17 +236,16 @@
 
 @push('scripts')
 <script>
-    // Form validation and enhancement
     document.getElementById('customerForm').addEventListener('submit', function(e) {
-        const name = document.querySelector('input[name="name"]').value;
-        if (!name.trim()) {
+        const name = document.querySelector('input[name="name"]');
+        if (!name.value.trim()) {
             e.preventDefault();
             alert('Please enter customer name');
-            document.querySelector('input[name="name"]').focus();
+            name.focus();
         }
     });
     
-    // Phone number formatting (Ghana format)
+    // Phone number formatting
     const phoneInput = document.querySelector('input[name="phone"]');
     if (phoneInput) {
         phoneInput.addEventListener('input', function(e) {

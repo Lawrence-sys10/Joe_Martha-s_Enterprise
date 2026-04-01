@@ -27,20 +27,20 @@
 <div class="py-12">
     <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
         <!-- Date Range Filter -->
-        <div class="bg-white rounded-2xl shadow-xl border border-amber-100 p-6 mb-6">
-            <form method="GET" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="filter-section">
+            <form method="GET" class="filter-grid">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
+                    <label class="filter-label">Start Date</label>
                     <input type="date" name="start_date" value="{{ $startDate }}" 
-                           class="w-full rounded-lg border-gray-300 focus:border-amber-500 focus:ring-amber-500">
+                           class="w-full rounded-lg border-gray-300 focus:border-amber-500 focus:ring-amber-500 filter-input">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">End Date</label>
+                    <label class="filter-label">End Date</label>
                     <input type="date" name="end_date" value="{{ $endDate }}" 
-                           class="w-full rounded-lg border-gray-300 focus:border-amber-500 focus:ring-amber-500">
+                           class="w-full rounded-lg border-gray-300 focus:border-amber-500 focus:ring-amber-500 filter-input">
                 </div>
-                <div class="flex items-end gap-2">
-                    <button type="submit" class="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold py-2 px-6 rounded-lg transition-all">
+                <div class="filter-actions">
+                    <button type="submit" class="filter-btn text-white font-bold py-2 px-6 rounded-lg transition-all">
                         Generate Report
                     </button>
                 </div>

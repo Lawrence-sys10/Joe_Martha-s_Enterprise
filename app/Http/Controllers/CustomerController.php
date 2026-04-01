@@ -6,6 +6,7 @@ use App\Models\Customer;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\SaleItem;
+use App\Models\Payment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -29,6 +30,7 @@ class CustomerController extends Controller
     public function create()
     {
         $products = Product::where('is_active', true)
+            ->where('stock_quantity', '>', 0)
             ->orderBy('name')
             ->get();
         
@@ -83,6 +85,11 @@ class CustomerController extends Controller
                     $unitPrice = !empty($item['unit_price']) ? $item['unit_price'] : $product->unit_price;
                     $total = $unitPrice * $item['quantity'];
                     
+                    // Check stock
+                    if ($product->stock_quantity < $item['quantity']) {
+                        throw new \Exception("Insufficient stock for {$product->name}. Available: {$product->stock_quantity}");
+                    }
+                    
                     $sale = Sale::create([
                         'invoice_number' => 'CREDIT-' . date('Ymd') . '-' . $customer->id . '-' . rand(100, 999),
                         'customer_id' => $customer->id,
@@ -116,11 +123,23 @@ class CustomerController extends Controller
                 }
             }
             
+            // Recalculate customer balance from all credit sales
+            $totalCredit = Sale::where('customer_id', $customer->id)
+                ->where('payment_method', 'credit')
+                ->sum('total');
+            
+            $totalPaid = Payment::whereHas('sale', function($query) use ($customer) {
+                $query->where('customer_id', $customer->id);
+            })->sum('amount');
+            
+            $customer->current_balance = $totalCredit - $totalPaid;
+            $customer->save();
+            
             DB::commit();
             
             $message = 'Customer created successfully!';
             if ($hasCreditItems) {
-                $message .= ' Credit items have been recorded.';
+                $message .= ' Credit items have been recorded. Balance: GHS ' . number_format($customer->current_balance, 2);
             }
             
             return redirect()->route('customers.index')
@@ -134,23 +153,72 @@ class CustomerController extends Controller
         }
     }
 
-    public function show(Customer $customer)
-    {
-        $customer->load([
-            'sales' => function($query) {
-                $query->orderBy('created_at', 'desc');
-            },
-            'sales.items' => function($query) {
-                $query->with('product');
-            }
-        ]);
+public function show(Customer $customer)
+{
+    // Refresh customer to get latest data
+    $customer->refresh();
+    
+    // Get all sales and update payment status based on actual paid_amount
+    $allSales = $customer->sales;
+    foreach ($allSales as $sale) {
+        $totalPaid = $sale->payments()->sum('amount');
+        $sale->paid_amount = $totalPaid;
         
-        return view('customers.show', compact('customer'));
+        if ($totalPaid >= $sale->total) {
+            $sale->payment_status = 'paid';
+        } elseif ($totalPaid > 0) {
+            $sale->payment_status = 'partial';
+        } else {
+            $sale->payment_status = 'pending';
+        }
+        $sale->save();
     }
+    
+    // Get credit sales that are NOT fully paid (pending or partial)
+    $creditSales = $customer->sales()
+        ->where('payment_method', 'credit')
+        ->whereIn('payment_status', ['pending', 'partial'])
+        ->with(['items.product', 'payments'])
+        ->orderBy('sale_date', 'desc')
+        ->get();
+    
+    // Get all fully paid sales (including credit and cash)
+    $paidSales = $customer->sales()
+        ->where('payment_status', 'paid')
+        ->with(['items.product', 'payments'])
+        ->orderBy('sale_date', 'desc')
+        ->get();
+    
+    // Get cash sales (non-credit)
+    $cashSales = $customer->sales()
+        ->where('payment_method', '!=', 'credit')
+        ->where('payment_status', 'paid')
+        ->with(['items.product'])
+        ->orderBy('sale_date', 'desc')
+        ->get();
+    
+    // Calculate totals for display
+    $totalCredit = $customer->sales()
+        ->where('payment_method', 'credit')
+        ->sum('total');
+    
+    $totalPaidAll = Payment::whereHas('sale', function($query) use ($customer) {
+        $query->where('customer_id', $customer->id);
+    })->sum('amount');
+    
+    $balanceDue = $totalCredit - $totalPaidAll;
+    
+    // Update customer balance
+    $customer->current_balance = $balanceDue;
+    $customer->save();
+    
+    return view('customers.show', compact('customer', 'creditSales', 'paidSales', 'cashSales', 'totalCredit', 'totalPaidAll', 'balanceDue'));
+}
 
     public function edit(Customer $customer)
     {
         $products = Product::where('is_active', true)
+            ->where('stock_quantity', '>', 0)
             ->orderBy('name')
             ->get();
         
@@ -192,107 +260,179 @@ class CustomerController extends Controller
             ->with('success', 'Customer deleted successfully!');
     }
 
-    public function makePayment(Request $request, Customer $customer)
-    {
-        $request->validate([
-            'sale_id' => 'required|exists:sales,id',
-            'amount' => 'required|numeric|min:0.01',
-        ]);
+public function makePayment(Request $request, Customer $customer)
+{
+    // Clear any existing success messages to prevent duplicates
+    session()->forget('success');
+    
+    $request->validate([
+        'sale_id' => 'required|exists:sales,id',
+        'amount' => 'required|numeric|min:0.01',
+        'payment_method' => 'required|in:cash,mobile_money,bank',
+        'notes' => 'nullable|string',
+    ]);
 
-        $sale = Sale::find($request->sale_id);
-        
-        $remaining = $sale->total - $sale->paid_amount;
-        if ($request->amount > $remaining) {
-            return redirect()->back()->with('error', 'Payment amount cannot exceed remaining balance of GHS ' . number_format($remaining, 2));
-        }
-        
-        DB::beginTransaction();
-        
-        try {
-            $newPaidAmount = $sale->paid_amount + $request->amount;
-            $sale->paid_amount = $newPaidAmount;
-            
-            if ($newPaidAmount >= $sale->total) {
-                $sale->payment_status = 'paid';
-            } else {
-                $sale->payment_status = 'partial';
-            }
-            $sale->save();
-            
-            $customer->current_balance -= $request->amount;
-            $customer->save();
-            
-            DB::commit();
-            
-            return redirect()->back()->with('success', 'Payment of GHS ' . number_format($request->amount, 2) . ' recorded successfully!');
-            
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return redirect()->back()->with('error', 'Failed to process payment: ' . $e->getMessage());
-        }
+    $sale = Sale::with('payments')->find($request->sale_id);
+    
+    // Verify this sale belongs to the customer
+    if ($sale->customer_id != $customer->id) {
+        return redirect()->back()->with('error', 'This sale does not belong to this customer.');
     }
-
-    public function addCredit(Request $request, Customer $customer)
-    {
-        $request->validate([
-            'product_id' => 'required|exists:products,id',
-            'quantity' => 'required|numeric|min:1',
-            'unit_price' => 'required|numeric|min:0',
-            'total' => 'required|numeric|min:0',
+    
+    // Calculate total paid so far
+    $totalPaid = $sale->payments()->sum('amount');
+    $remaining = $sale->total - $totalPaid;
+    
+    if ($request->amount > $remaining) {
+        return redirect()->back()->with('error', 'Payment amount cannot exceed remaining balance of GHS ' . number_format($remaining, 2));
+    }
+    
+    // Check for duplicate payment in the last 10 seconds
+    $recentPayment = Payment::where('sale_id', $sale->id)
+        ->where('amount', $request->amount)
+        ->where('payment_method', $request->payment_method)
+        ->where('created_at', '>=', now()->subSeconds(10))
+        ->exists();
+    
+    if ($recentPayment) {
+        return redirect()->back()->with('error', 'Duplicate payment detected. Please wait a moment before trying again.');
+    }
+    
+    DB::beginTransaction();
+    
+    try {
+        $payment = Payment::create([
+            'sale_id' => $sale->id,
+            'amount' => $request->amount,
+            'payment_method' => $request->payment_method,
+            'payment_date' => now(),
+            'notes' => $request->notes ?? 'Payment for invoice: ' . $sale->invoice_number,
+            'user_id' => auth()->id(),
         ]);
-
-        DB::beginTransaction();
-
-        try {
-            $product = Product::find($request->product_id);
-            
-            if (!$product) {
-                throw new \Exception('Product not found');
-            }
-            
-            $invoiceNumber = 'CREDIT-' . date('Ymd') . '-' . $customer->id . '-' . rand(100, 999);
-            
-            $sale = Sale::create([
-                'invoice_number' => $invoiceNumber,
-                'customer_id' => $customer->id,
-                'sale_date' => now(),
-                'subtotal' => $request->total,
-                'tax' => 0,
-                'discount' => 0,
-                'total' => $request->total,
-                'payment_method' => 'credit',
-                'status' => 'completed',
-                'user_id' => auth()->id(),
-                'payment_status' => 'pending',
-                'paid_amount' => 0,
-                'change_amount' => 0,
-                'notes' => 'Additional credit purchase'
-            ]);
-            
-            SaleItem::create([
-                'sale_id' => $sale->id,
-                'product_id' => $request->product_id,
-                'quantity' => $request->quantity,
-                'unit_price' => $request->unit_price,
-                'discount' => 0,
-                'total' => $request->total,
-            ]);
-            
-            $product->stock_quantity -= $request->quantity;
-            $product->save();
-            
-            $customer->current_balance += $request->total;
-            $customer->save();
-            
-            DB::commit();
-            
-            return redirect()->route('customers.show', $customer)
-                ->with('success', 'Credit item added successfully! Total: GHS ' . number_format($request->total, 2));
-                
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return redirect()->back()
-                ->with('error', 'Failed to add credit item: ' . $e->getMessage());
+        
+        $newTotalPaid = $totalPaid + $request->amount;
+        $sale->paid_amount = $newTotalPaid;
+        
+        if ($newTotalPaid >= $sale->total) {
+            $sale->payment_status = 'paid';
+            $sale->status = 'completed';
+        } else {
+            $sale->payment_status = 'partial';
+            $sale->status = 'completed';
         }
+        $sale->save();
+        
+        $customer->current_balance -= $request->amount;
+        $customer->save();
+        
+        DB::commit();
+        
+        $status = $sale->payment_status == 'paid' ? 'fully paid' : 'partially paid';
+        $newBalance = $customer->current_balance;
+        
+        // Use flash session that will be cleared after display
+        return redirect()->back()->with('success', 
+            'Payment of GHS ' . number_format($request->amount, 2) . ' recorded successfully! ' .
+            'Sale #' . $sale->invoice_number . ' is now ' . $status . '. ' .
+            'Remaining balance: GHS ' . number_format($sale->total - $newTotalPaid, 2) . '. ' .
+            'Customer balance: GHS ' . number_format($newBalance, 2)
+        );
+        
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return redirect()->back()->with('error', 'Failed to process payment: ' . $e->getMessage());
+    }
+}
+
+public function addCredit(Request $request, Customer $customer)
+{
+    // Clear any existing success messages
+    session()->forget('success');
+    
+    $request->validate([
+        'product_id' => 'required|exists:products,id',
+        'quantity' => 'required|numeric|min:1',
+        'unit_price' => 'required|numeric|min:0',
+    ]);
+
+    DB::beginTransaction();
+
+    try {
+        $product = Product::find($request->product_id);
+        
+        if (!$product) {
+            throw new \Exception('Product not found');
+        }
+        
+        if ($product->stock_quantity < $request->quantity) {
+            throw new \Exception('Insufficient stock. Available: ' . $product->stock_quantity);
+        }
+        
+        $total = $request->unit_price * $request->quantity;
+        $invoiceNumber = 'CREDIT-' . date('Ymd') . '-' . $customer->id . '-' . rand(100, 999);
+        
+        $sale = Sale::create([
+            'invoice_number' => $invoiceNumber,
+            'customer_id' => $customer->id,
+            'sale_date' => now(),
+            'subtotal' => $total,
+            'tax' => 0,
+            'discount' => 0,
+            'total' => $total,
+            'payment_method' => 'credit',
+            'status' => 'completed',
+            'user_id' => auth()->id(),
+            'payment_status' => 'pending',
+            'paid_amount' => 0,
+            'change_amount' => 0,
+            'notes' => 'Additional credit purchase'
+        ]);
+        
+        SaleItem::create([
+            'sale_id' => $sale->id,
+            'product_id' => $request->product_id,
+            'quantity' => $request->quantity,
+            'unit_price' => $request->unit_price,
+            'discount' => 0,
+            'total' => $total,
+        ]);
+        
+        $product->stock_quantity -= $request->quantity;
+        $product->save();
+        
+        $customer->current_balance += $total;
+        $customer->save();
+        
+        DB::commit();
+        
+        return redirect()->route('customers.show', $customer)
+            ->with('success', 
+                'Credit item added successfully! ' .
+                'Invoice: ' . $invoiceNumber . ' ' .
+                'Amount: GHS ' . number_format($total, 2) . ' ' .
+                'Customer new balance: GHS ' . number_format($customer->current_balance, 2)
+            );
+                
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return redirect()->back()
+            ->with('error', 'Failed to add credit item: ' . $e->getMessage());
+    }
+}
+    
+    public function getPaymentHistory(Customer $customer)
+    {
+        // Get payments through sales relationship
+        $payments = Payment::whereHas('sale', function($query) use ($customer) {
+            $query->where('customer_id', $customer->id);
+        })->with('sale')
+          ->orderBy('payment_date', 'desc')
+          ->get();
+            
+        return response()->json([
+            'success' => true,
+            'data' => $payments,
+            'total_payments' => $payments->sum('amount')
+        ]);
     }
 }

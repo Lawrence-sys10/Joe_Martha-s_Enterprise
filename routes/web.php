@@ -116,3 +116,22 @@ Route::post('/customers/{customer}/add-credit', [App\Http\Controllers\CustomerCo
 
 Route::post('/customers/{customer}/pay', [App\Http\Controllers\CustomerController::class, 'makePayment'])->name('customers.pay');
 
+
+Route::post('/purchases/{purchase}/payment', [App\Http\Controllers\PurchaseController::class, 'recordPayment'])->name('purchases.payment.store');
+
+
+// Supplier Payments Report Routes
+Route::prefix('reports')->name('reports.')->group(function () {
+    Route::get('/supplier-payments', [App\Http\Controllers\SupplierPaymentController::class, 'index'])->name('supplier-payments');
+    Route::get('/supplier-payments/create', [App\Http\Controllers\SupplierPaymentController::class, 'create'])->name('supplier-payments.create');
+    Route::post('/supplier-payments', [App\Http\Controllers\SupplierPaymentController::class, 'store'])->name('supplier-payments.store');
+    Route::get('/supplier-payments/{payment}/receipt', [App\Http\Controllers\SupplierPaymentController::class, 'receipt'])->name('supplier-payments.receipt');
+});
+
+
+// Payment Receipt Route
+Route::get('/payments/{payment}/print', [App\Http\Controllers\SupplierPaymentController::class, 'printReceipt'])->name('payments.print');
+
+
+Route::post('/reports/supplier-payments', [App\Http\Controllers\SupplierPaymentController::class, 'store'])->name('reports.supplier-payments.store');
+

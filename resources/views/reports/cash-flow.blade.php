@@ -10,8 +10,8 @@
                     <h2 class="text-2xl font-bold text-white">Cash Flow Statement</h2>
                     <p class="text-amber-100 text-sm mt-1">Track your cash movements</p>
                 </div>
-                <a href="{{ route('reports.daily') }}" class="bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white font-bold py-2 px-4 rounded-lg transition-all">
-                    Back to Reports
+                <a href="{{ route('dashboard') }}" class="bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white font-bold py-2 px-4 rounded-lg transition-all">
+                    Back to Dashboard
                 </a>
             </div>
         </div>
@@ -22,20 +22,20 @@
 <div class="py-12">
     <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
         <!-- Date Range Filter -->
-        <div class="bg-white rounded-2xl shadow-xl border border-amber-100 p-6 mb-6">
-            <form method="GET" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="filter-section">
+            <form method="GET" class="filter-grid">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
+                    <label class="filter-label">Start Date</label>
                     <input type="date" name="start_date" value="{{ $startDate }}" 
-                           class="w-full rounded-lg border-gray-300 focus:border-amber-500 focus:ring-amber-500">
+                           class="w-full rounded-lg border-gray-300 focus:border-amber-500 focus:ring-amber-500 filter-input">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">End Date</label>
+                    <label class="filter-label">End Date</label>
                     <input type="date" name="end_date" value="{{ $endDate }}" 
-                           class="w-full rounded-lg border-gray-300 focus:border-amber-500 focus:ring-amber-500">
+                           class="w-full rounded-lg border-gray-300 focus:border-amber-500 focus:ring-amber-500 filter-input">
                 </div>
                 <div class="flex items-end">
-                    <button type="submit" class="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold py-2 px-6 rounded-lg transition-all">
+                    <button type="submit" class="filter-btn text-white font-bold py-2 px-6 rounded-lg transition-all">
                         Generate Report
                     </button>
                 </div>
@@ -48,7 +48,7 @@
                 <div class="flex items-center justify-between">
                     <div>
                         <p class="text-sm text-gray-500">Opening Balance</p>
-                        <p class="text-2xl font-bold text-gray-800 mt-2">GHS {{ number_format($cashFlow['summary']['opening_balance'], 2) }}</p>
+                        <p class="text-2xl font-bold text-gray-800 mt-2">GHS {{ number_format($cashFlow['summary']['opening_balance'] ?? 0, 2) }}</p>
                     </div>
                     <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
                         <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -62,8 +62,8 @@
                 <div class="flex items-center justify-between">
                     <div>
                         <p class="text-sm text-gray-500">Net Cash Flow</p>
-                        <p class="text-2xl font-bold {{ $cashFlow['summary']['net_cash_flow'] >= 0 ? 'text-green-600' : 'text-red-600' }} mt-2">
-                            GHS {{ number_format($cashFlow['summary']['net_cash_flow'], 2) }}
+                        <p class="text-2xl font-bold {{ ($cashFlow['operating_activities']['net_cash'] ?? 0) >= 0 ? 'text-green-600' : 'text-red-600' }} mt-2">
+                            GHS {{ number_format($cashFlow['operating_activities']['net_cash'] ?? 0, 2) }}
                         </p>
                     </div>
                     <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
@@ -78,7 +78,7 @@
                 <div class="flex items-center justify-between">
                     <div>
                         <p class="text-sm text-gray-500">Closing Balance</p>
-                        <p class="text-2xl font-bold text-gray-800 mt-2">GHS {{ number_format($cashFlow['summary']['closing_balance'], 2) }}</p>
+                        <p class="text-2xl font-bold text-gray-800 mt-2">GHS {{ number_format($cashFlow['summary']['closing_balance'] ?? 0, 2) }}</p>
                     </div>
                     <div class="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
                         <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -99,41 +99,41 @@
                 <div class="space-y-4">
                     <div class="flex justify-between items-center pb-3 border-b border-gray-200">
                         <span class="text-gray-600">Cash Sales</span>
-                        <span class="text-lg font-semibold text-gray-800">GHS {{ number_format($cashFlow['operating_activities']['cash_sales'], 2) }}</span>
+                        <span class="text-lg font-semibold text-gray-800">GHS {{ number_format($cashFlow['operating_activities']['cash_sales'] ?? 0, 2) }}</span>
                     </div>
                     <div class="flex justify-between items-center pb-3 border-b border-gray-200">
                         <span class="text-gray-600">Customer Payments Received</span>
-                        <span class="text-lg font-semibold text-gray-800">GHS {{ number_format($cashFlow['operating_activities']['customer_receipts'], 2) }}</span>
+                        <span class="text-lg font-semibold text-gray-800">GHS {{ number_format($cashFlow['operating_activities']['customer_receipts'] ?? 0, 2) }}</span>
                     </div>
-                    <div class="flex justify-between items-center pb-3 border-b border-gray-200">
-                        <span class="text-gray-600 font-semibold">Total Cash Inflow</span>
-                        <span class="text-lg font-bold text-green-600">GHS {{ number_format($cashFlow['operating_activities']['total_inflow'], 2) }}</span>
+                    <div class="flex justify-between items-center pb-3 border-b border-gray-200 bg-green-50">
+                        <span class="text-gray-700 font-semibold">Total Cash Inflow</span>
+                        <span class="text-lg font-bold text-green-600">GHS {{ number_format($cashFlow['operating_activities']['total_inflow'] ?? 0, 2) }}</span>
                     </div>
                     
                     <div class="mt-4 pt-2">
                         <div class="flex justify-between items-center pb-3 border-b border-gray-200">
                             <span class="text-gray-600">Purchases (Payments to Suppliers)</span>
-                            <span class="text-lg font-semibold text-gray-800">GHS {{ number_format($cashFlow['operating_activities']['purchases'], 2) }}</span>
+                            <span class="text-lg font-semibold text-gray-800">GHS {{ number_format($cashFlow['operating_activities']['purchases'] ?? 0, 2) }}</span>
                         </div>
                         <div class="flex justify-between items-center pb-3 border-b border-gray-200">
                             <span class="text-gray-600">Supplier Payments</span>
-                            <span class="text-lg font-semibold text-gray-800">GHS {{ number_format($cashFlow['operating_activities']['supplier_payments'], 2) }}</span>
+                            <span class="text-lg font-semibold text-gray-800">GHS {{ number_format($cashFlow['operating_activities']['supplier_payments'] ?? 0, 2) }}</span>
                         </div>
                         <div class="flex justify-between items-center pb-3 border-b border-gray-200">
                             <span class="text-gray-600">Operating Expenses</span>
-                            <span class="text-lg font-semibold text-gray-800">GHS {{ number_format($cashFlow['operating_activities']['expenses'], 2) }}</span>
+                            <span class="text-lg font-semibold text-gray-800">GHS {{ number_format($cashFlow['operating_activities']['expenses'] ?? 0, 2) }}</span>
                         </div>
-                        <div class="flex justify-between items-center pt-2">
-                            <span class="text-gray-600 font-semibold">Total Cash Outflow</span>
-                            <span class="text-lg font-bold text-red-600">GHS {{ number_format($cashFlow['operating_activities']['total_outflow'], 2) }}</span>
+                        <div class="flex justify-between items-center pt-2 bg-red-50">
+                            <span class="text-gray-700 font-semibold">Total Cash Outflow</span>
+                            <span class="text-lg font-bold text-red-600">GHS {{ number_format($cashFlow['operating_activities']['total_outflow'] ?? 0, 2) }}</span>
                         </div>
                     </div>
                     
                     <div class="mt-6 pt-4 border-t-2 border-gray-300">
                         <div class="flex justify-between items-center">
                             <span class="text-xl font-bold text-gray-800">Net Cash from Operations</span>
-                            <span class="text-2xl font-bold {{ $cashFlow['operating_activities']['net_cash'] >= 0 ? 'text-green-600' : 'text-red-600' }}">
-                                GHS {{ number_format($cashFlow['operating_activities']['net_cash'], 2) }}
+                            <span class="text-2xl font-bold {{ ($cashFlow['operating_activities']['net_cash'] ?? 0) >= 0 ? 'text-green-600' : 'text-red-600' }}">
+                                GHS {{ number_format($cashFlow['operating_activities']['net_cash'] ?? 0, 2) }}
                             </span>
                         </div>
                     </div>
@@ -153,3 +153,4 @@
     </div>
 </div>
 @endsection
+

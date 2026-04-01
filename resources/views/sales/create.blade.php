@@ -53,7 +53,7 @@
                         <!-- Products Grid -->
                         <div id="products-grid" class="grid grid-cols-2 md:grid-cols-3 gap-4 max-h-[500px] overflow-y-auto pr-2">
                             @foreach($products as $product)
-                            <div class="product-item group bg-gradient-to-br from-white to-gray-50 rounded-xl border-2 border-gray-100 hover:border-amber-300 hover:shadow-lg transition-all duration-200 cursor-pointer overflow-hidden" 
+                            <div class="product-item bg-gradient-to-br from-white to-gray-50 rounded-xl border-2 border-gray-100 hover:border-amber-300 hover:shadow-lg transition-all duration-200 overflow-hidden" 
                                  data-id="{{ $product->id }}"
                                  data-name="{{ $product->name }}"
                                  data-price="{{ $product->unit_price }}"
@@ -62,7 +62,7 @@
                                 <div class="p-4">
                                     <div class="flex justify-between items-start mb-2">
                                         <div class="flex-1">
-                                            <h3 class="font-semibold text-gray-800 group-hover:text-amber-600 transition-colors">{{ $product->name }}</h3>
+                                            <h3 class="font-semibold text-gray-800">{{ $product->name }}</h3>
                                             <p class="text-xs text-gray-500 mt-1">SKU: {{ $product->sku }}</p>
                                         </div>
                                         @if($product->stock_quantity <= 10)
@@ -73,8 +73,11 @@
                                         <div class="text-2xl font-bold text-amber-600">GHS {{ number_format($product->unit_price, 2) }}</div>
                                         <div class="text-xs text-gray-500 mt-1">Stock: {{ $product->stock_quantity }} {{ $product->unit }}s</div>
                                     </div>
-                                    <div class="mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button class="w-full bg-amber-500 hover:bg-amber-600 text-white py-2 rounded-lg text-sm font-semibold transition-colors">
+                                    <div class="mt-4">
+                                        <button class="add-to-cart-btn w-full bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white py-2 rounded-lg text-sm font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                                            </svg>
                                             Add to Cart
                                         </button>
                                     </div>
@@ -215,29 +218,50 @@
         });
     });
     
-    // Add to cart
-    document.querySelectorAll('.product-item').forEach(item => {
-        const addBtn = item.querySelector('button');
-        addBtn.addEventListener('click', (e) => {
+    // Add to cart - Now always visible
+    document.querySelectorAll('.add-to-cart-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
             e.stopPropagation();
-            const id = parseInt(item.dataset.id);
-            const name = item.dataset.name;
-            const price = parseFloat(item.dataset.price);
-            const stock = parseInt(item.dataset.stock);
+            const productItem = btn.closest('.product-item');
+            const id = parseInt(productItem.dataset.id);
+            const name = productItem.dataset.name;
+            const price = parseFloat(productItem.dataset.price);
+            const stock = parseInt(productItem.dataset.stock);
             
             const existingItem = cart.find(i => i.id === id);
             if (existingItem) {
                 if (existingItem.quantity + 1 <= stock) {
                     existingItem.quantity++;
+                    showNotification(`${name} quantity increased to ${existingItem.quantity}`, 'success');
                 } else {
                     alert('Insufficient stock!');
                 }
             } else {
                 cart.push({ id, name, price, quantity: 1 });
+                showNotification(`${name} added to cart`, 'success');
             }
             updateCart();
         });
     });
+    
+    function showNotification(message, type) {
+        const notification = document.createElement('div');
+        notification.className = 'fixed bottom-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 transition-all duration-300 transform translate-y-0 opacity-100';
+        notification.innerHTML = `
+            <div class="flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <span>${message}</span>
+            </div>
+        `;
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.classList.add('opacity-0', 'translate-y-2');
+            setTimeout(() => notification.remove(), 300);
+        }, 2000);
+    }
     
     function updateCart() {
         const cartContainer = document.getElementById('cart-items');
@@ -369,7 +393,7 @@
     document.getElementById('product-search').addEventListener('input', function(e) {
         const searchTerm = e.target.value.toLowerCase();
         document.querySelectorAll('.product-item').forEach(item => {
-            const name = item.dataset.name.toLowerCase();
+            const name = item.querySelector('h3').textContent.toLowerCase();
             if (name.includes(searchTerm)) {
                 item.style.display = 'block';
             } else {

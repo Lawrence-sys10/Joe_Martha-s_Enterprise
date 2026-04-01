@@ -11,6 +11,14 @@ use App\Exports\SalesExport;
 use App\Exports\CustomerDebtExport;
 use App\Exports\SupplierBalanceExport;
 use App\Services\CashBalanceService;
+use App\Models\Sale;
+use App\Models\SaleItem;
+use App\Models\Product;
+use App\Models\Expense;
+use App\Models\Purchase;
+use App\Models\Customer;
+use App\Models\Supplier;
+use Illuminate\Support\Facades\DB;
 
 class ReportController extends Controller
 {
@@ -32,8 +40,15 @@ class ReportController extends Controller
     {
         $date = $request->get('date', now()->toDateString());
         
-        // Get sales for the selected date
-        $sales = $this->salesService->getDailySales($date);
+        // Convert to datetime with proper time boundaries
+        $startDateTime = \Carbon\Carbon::parse($date)->startOfDay();
+        $endDateTime = \Carbon\Carbon::parse($date)->endOfDay();
+        
+        // Get sales for the selected date - INCLUDE all sales regardless of payment status
+        $sales = Sale::with(['customer', 'items.product'])
+            ->whereBetween('sale_date', [$startDateTime, $endDateTime])
+            ->orderBy('sale_date', 'desc')
+            ->get();
         
         // Calculate summary
         $totalSales = $sales->count();
@@ -56,17 +71,28 @@ class ReportController extends Controller
     public function monthlySales(Request $request)
     {
         $month = $request->get('month', now()->format('Y-m'));
-        $startDate = date('Y-m-01', strtotime($month));
-        $endDate = date('Y-m-t', strtotime($month));
         
-        $sales = \App\Models\Sale::with('customer', 'items')
+        // Get the first and last day of the selected month
+        $startDate = \Carbon\Carbon::parse($month)->startOfMonth();
+        $endDate = \Carbon\Carbon::parse($month)->endOfMonth();
+        
+        // Get sales for the selected month with eager loading
+        $sales = Sale::with(['customer', 'items.product', 'payments'])
             ->whereBetween('sale_date', [$startDate, $endDate])
-            ->where('status', 'completed')
             ->orderBy('sale_date', 'desc')
             ->paginate(20);
         
-        $totalSales = $sales->total();
-        $totalRevenue = $sales->sum('total');
+        // Calculate totals using a separate query for accurate summary (not affected by pagination)
+        $totals = Sale::whereBetween('sale_date', [$startDate, $endDate])
+            ->select(
+                DB::raw('COUNT(*) as total_sales'),
+                DB::raw('SUM(total) as total_revenue'),
+                DB::raw('AVG(total) as average_sale')
+            )
+            ->first();
+        
+        $totalSales = $totals->total_sales ?? 0;
+        $totalRevenue = $totals->total_revenue ?? 0;
         $averageSale = $totalSales > 0 ? $totalRevenue / $totalSales : 0;
         
         $summary = collect([(object)[
@@ -87,27 +113,24 @@ class ReportController extends Controller
         $startDateTime = \Carbon\Carbon::parse($startDate)->startOfDay();
         $endDateTime = \Carbon\Carbon::parse($endDate)->endOfDay();
         
-        // Calculate Sales Revenue
-        $totalSales = \App\Models\Sale::whereBetween('sale_date', [$startDateTime, $endDateTime])
-            ->where('status', 'completed')
+        // Calculate Sales Revenue - ALL sales included
+        $totalSales = Sale::whereBetween('sale_date', [$startDateTime, $endDateTime])
             ->sum('total');
         
         // Calculate Cost of Goods Sold (from sale items)
-        $totalCost = \App\Models\SaleItem::whereHas('sale', function($q) use ($startDateTime, $endDateTime) {
-                $q->whereBetween('sale_date', [$startDateTime, $endDateTime])
-                  ->where('status', 'completed');
+        $totalCost = SaleItem::whereHas('sale', function($q) use ($startDateTime, $endDateTime) {
+                $q->whereBetween('sale_date', [$startDateTime, $endDateTime]);
             })
             ->join('products', 'sale_items.product_id', '=', 'products.id')
-            ->select(\DB::raw('SUM(sale_items.quantity * products.cost_price) as total_cost'))
+            ->select(DB::raw('COALESCE(SUM(sale_items.quantity * products.cost_price), 0) as total_cost'))
             ->first()->total_cost ?? 0;
         
         // Calculate Expenses
-        $totalExpenses = \App\Models\Expense::whereBetween('expense_date', [$startDateTime, $endDateTime])
+        $totalExpenses = Expense::whereBetween('expense_date', [$startDateTime, $endDateTime])
             ->sum('amount');
         
         // Calculate Purchases (for reference)
-        $totalPurchases = \App\Models\Purchase::whereBetween('purchase_date', [$startDateTime, $endDateTime])
-            ->where('status', 'completed')
+        $totalPurchases = Purchase::whereBetween('purchase_date', [$startDateTime, $endDateTime])
             ->sum('total');
         
         // Calculate Gross Profit
@@ -120,30 +143,30 @@ class ReportController extends Controller
         $profitMargin = $totalSales > 0 ? ($grossProfit / $totalSales) * 100 : 0;
         
         // Get daily breakdown for chart
-        $dailyData = \App\Models\Sale::whereBetween('sale_date', [$startDateTime, $endDateTime])
-            ->where('status', 'completed')
+        $dailyData = Sale::whereBetween('sale_date', [$startDateTime, $endDateTime])
             ->select(
-                \DB::raw('DATE(sale_date) as date'),
-                \DB::raw('SUM(total) as daily_sales'),
-                \DB::raw('SUM(tax) as daily_tax'),
-                \DB::raw('COUNT(*) as transaction_count')
+                DB::raw('DATE(sale_date) as date'),
+                DB::raw('SUM(total) as daily_sales'),
+                DB::raw('SUM(tax) as daily_tax'),
+                DB::raw('COUNT(*) as transaction_count')
             )
             ->groupBy('date')
             ->orderBy('date')
             ->get();
         
         // Get top products for the period
-        $topProducts = \DB::table('sale_items')
+        $topProducts = DB::table('sale_items')
             ->join('products', 'sale_items.product_id', '=', 'products.id')
             ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
             ->whereBetween('sales.sale_date', [$startDateTime, $endDateTime])
-            ->where('sales.status', 'completed')
             ->select(
+                'products.id',
                 'products.name',
-                \DB::raw('SUM(sale_items.quantity) as total_quantity'),
-                \DB::raw('SUM(sale_items.total) as total_revenue')
+                'products.sku',
+                DB::raw('SUM(sale_items.quantity) as total_quantity'),
+                DB::raw('SUM(sale_items.total) as total_revenue')
             )
-            ->groupBy('products.id', 'products.name')
+            ->groupBy('products.id', 'products.name', 'products.sku')
             ->orderBy('total_revenue', 'desc')
             ->limit(5)
             ->get();
@@ -155,7 +178,7 @@ class ReportController extends Controller
             'total_expenses' => $totalExpenses,
             'gross_profit' => $grossProfit,
             'net_profit' => $netProfit,
-            'profit_margin' => $profitMargin,
+            'profit_margin' => round($profitMargin, 2),
             'daily_data' => $dailyData,
             'top_products' => $topProducts,
             'period' => [
@@ -170,7 +193,7 @@ class ReportController extends Controller
     public function stockValuation()
     {
         // Get all active products with complete data including cost_price
-        $products = \App\Models\Product::where('is_active', true)
+        $products = Product::where('is_active', true)
             ->select(
                 'id',
                 'name',
@@ -187,13 +210,13 @@ class ReportController extends Controller
             ->get();
         
         // Calculate total stock value
-        $totalValue = \App\Models\Product::where('is_active', true)
-            ->sum(\DB::raw('stock_quantity * cost_price'));
+        $totalValue = Product::where('is_active', true)
+            ->sum(DB::raw('COALESCE(stock_quantity, 0) * COALESCE(cost_price, 0)'));
         
         return view('reports.stock-valuation', compact('products', 'totalValue'));
     }
 
-        public function topProducts(Request $request)
+    public function topProducts(Request $request)
     {
         $startDate = $request->get('start_date', now()->startOfMonth()->toDateString());
         $endDate = $request->get('end_date', now()->toDateString());
@@ -203,22 +226,20 @@ class ReportController extends Controller
         $startDateTime = \Carbon\Carbon::parse($startDate)->startOfDay();
         $endDateTime = \Carbon\Carbon::parse($endDate)->endOfDay();
         
-        $topProducts = \DB::table('sale_items')
+        $topProducts = DB::table('sale_items')
             ->join('products', 'sale_items.product_id', '=', 'products.id')
             ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
             ->whereBetween('sales.sale_date', [$startDateTime, $endDateTime])
-            ->where('sales.status', 'completed')
             ->select(
                 'products.id',
                 'products.name',
                 'products.sku',
-                'products.cost_price',
-                \DB::raw('SUM(sale_items.quantity) as total_quantity'),
-                \DB::raw('SUM(sale_items.total) as total_revenue'),
-                \DB::raw('COUNT(DISTINCT sale_items.sale_id) as times_sold'),
-                \DB::raw('AVG(sale_items.unit_price) as avg_price')
+                DB::raw('SUM(sale_items.quantity) as total_quantity'),
+                DB::raw('SUM(sale_items.total) as total_revenue'),
+                DB::raw('COUNT(DISTINCT sale_items.sale_id) as times_sold'),
+                DB::raw('AVG(sale_items.unit_price) as avg_price')
             )
-            ->groupBy('products.id', 'products.name', 'products.sku', 'products.cost_price')
+            ->groupBy('products.id', 'products.name', 'products.sku')
             ->orderBy('total_revenue', 'desc')
             ->limit($limit)
             ->get();
@@ -236,20 +257,20 @@ class ReportController extends Controller
     
     public function customerDebt()
     {
-        $customers = \App\Models\Customer::where('current_balance', '>', 0)
+        $customers = Customer::where('current_balance', '>', 0)
             ->orderBy('current_balance', 'desc')
             ->paginate(20);
-        $totalDebt = \App\Models\Customer::sum('current_balance');
+        $totalDebt = Customer::sum('current_balance');
         
         return view('reports.customer-debt', compact('customers', 'totalDebt'));
     }
     
     public function supplierBalance()
     {
-        $suppliers = \App\Models\Supplier::where('current_balance', '!=', 0)
+        $suppliers = Supplier::where('current_balance', '!=', 0)
             ->orderBy('current_balance', 'desc')
             ->paginate(20);
-        $totalBalance = \App\Models\Supplier::sum('current_balance');
+        $totalBalance = Supplier::sum('current_balance');
         
         return view('reports.supplier-balance', compact('suppliers', 'totalBalance'));
     }
@@ -271,7 +292,14 @@ class ReportController extends Controller
         $startDate = $request->get('start_date', now()->startOfMonth()->toDateString());
         $endDate = $request->get('end_date', now()->toDateString());
         
-        return view('reports.expense', compact('startDate', 'endDate'));
+        $expenses = Expense::with('category')
+            ->whereBetween('expense_date', [$startDate, $endDate])
+            ->orderBy('expense_date', 'desc')
+            ->paginate(20);
+        
+        $totalExpenses = Expense::whereBetween('expense_date', [$startDate, $endDate])->sum('amount');
+        
+        return view('reports.expense', compact('expenses', 'totalExpenses', 'startDate', 'endDate'));
     }
     
     public function exportCustomerDebt()

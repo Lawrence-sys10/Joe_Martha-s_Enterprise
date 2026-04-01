@@ -36,6 +36,8 @@ class DashboardController extends Controller
         $yearStart = now()->startOfYear()->format('Y-m-d H:i:s');
         $yearEnd = now()->endOfYear()->format('Y-m-d H:i:s');
         
+        // ========== PROFIT & LOSS CALCULATIONS ==========
+        
         // Today's Profit & Loss
         $todaySales = \App\Models\Sale::whereBetween('sale_date', [$todayStart, $todayEnd])
             ->where('status', 'completed')
@@ -84,6 +86,118 @@ class DashboardController extends Controller
         $yearlyProfit = $yearlySales - $yearlyCost;
         $yearlyMargin = $yearlySales > 0 ? ($yearlyProfit / $yearlySales) * 100 : 0;
         
+        // ========== CASH RECEIVED & OUTSTANDING CREDIT CALCULATIONS ==========
+        
+        // Today's breakdown
+        // FULLY PAID SALES (cash sales + fully paid credit sales)
+        $todayFullyPaid = \App\Models\Sale::whereBetween('sale_date', [$todayStart, $todayEnd])
+            ->where('payment_status', 'paid')
+            ->sum('total');
+        
+        // ACTUAL AMOUNT COLLECTED from partially paid sales
+        $todayPartialCollected = \App\Models\Payment::whereDate('payment_date', now()->toDateString())
+            ->whereHas('sale', function($q) {
+                $q->where('payment_status', 'partial');
+            })->sum('amount');
+        
+        // TOTAL CASH RECEIVED = Fully Paid + Payments received on Partial Sales
+        $todayCashReceived = $todayFullyPaid + $todayPartialCollected;
+        
+        // OUTSTANDING CREDIT = (Credit sales with NO payment received) + (Remaining balance on partially paid credit sales)
+        
+        // Part 1: Credit sales with NO payment received (pending status)
+        $todayPendingCredit = \App\Models\Sale::whereBetween('sale_date', [$todayStart, $todayEnd])
+            ->where('payment_method', 'credit')
+            ->where('payment_status', 'pending')
+            ->sum('total');
+        
+        // Part 2: Remaining balance on partially paid credit sales
+        $todayPartialRemaining = 0;
+        $todayPartialCreditSales = \App\Models\Sale::whereBetween('sale_date', [$todayStart, $todayEnd])
+            ->where('payment_method', 'credit')
+            ->where('payment_status', 'partial')
+            ->get();
+        
+        foreach ($todayPartialCreditSales as $sale) {
+            $paidAmount = $sale->payments()->sum('amount');
+            $remaining = $sale->total - $paidAmount;
+            if ($remaining > 0) {
+                $todayPartialRemaining += $remaining;
+            }
+        }
+        
+        // Total Outstanding Credit = Pending Credit + Remaining Balance on Partial Credit
+        $todayOutstandingCredit = $todayPendingCredit + $todayPartialRemaining;
+        
+        // Monthly breakdown
+        $monthlyFullyPaid = \App\Models\Sale::whereBetween('sale_date', [$monthStart, $monthEnd])
+            ->where('payment_status', 'paid')
+            ->sum('total');
+        
+        $monthlyPartialCollected = \App\Models\Payment::whereMonth('payment_date', now()->month)
+            ->whereYear('payment_date', now()->year)
+            ->whereHas('sale', function($q) {
+                $q->where('payment_status', 'partial');
+            })->sum('amount');
+        
+        $monthlyCashReceived = $monthlyFullyPaid + $monthlyPartialCollected;
+        
+        $monthlyPendingCredit = \App\Models\Sale::whereBetween('sale_date', [$monthStart, $monthEnd])
+            ->where('payment_method', 'credit')
+            ->where('payment_status', 'pending')
+            ->sum('total');
+        
+        $monthlyPartialRemaining = 0;
+        $monthlyPartialCreditSales = \App\Models\Sale::whereBetween('sale_date', [$monthStart, $monthEnd])
+            ->where('payment_method', 'credit')
+            ->where('payment_status', 'partial')
+            ->get();
+        
+        foreach ($monthlyPartialCreditSales as $sale) {
+            $paidAmount = $sale->payments()->sum('amount');
+            $remaining = $sale->total - $paidAmount;
+            if ($remaining > 0) {
+                $monthlyPartialRemaining += $remaining;
+            }
+        }
+        
+        $monthlyOutstandingCredit = $monthlyPendingCredit + $monthlyPartialRemaining;
+        
+        // Yearly breakdown
+        $yearlyFullyPaid = \App\Models\Sale::whereBetween('sale_date', [$yearStart, $yearEnd])
+            ->where('payment_status', 'paid')
+            ->sum('total');
+        
+        $yearlyPartialCollected = \App\Models\Payment::whereYear('payment_date', now()->year)
+            ->whereHas('sale', function($q) {
+                $q->where('payment_status', 'partial');
+            })->sum('amount');
+        
+        $yearlyCashReceived = $yearlyFullyPaid + $yearlyPartialCollected;
+        
+        $yearlyPendingCredit = \App\Models\Sale::whereBetween('sale_date', [$yearStart, $yearEnd])
+            ->where('payment_method', 'credit')
+            ->where('payment_status', 'pending')
+            ->sum('total');
+        
+        $yearlyPartialRemaining = 0;
+        $yearlyPartialCreditSales = \App\Models\Sale::whereBetween('sale_date', [$yearStart, $yearEnd])
+            ->where('payment_method', 'credit')
+            ->where('payment_status', 'partial')
+            ->get();
+        
+        foreach ($yearlyPartialCreditSales as $sale) {
+            $paidAmount = $sale->payments()->sum('amount');
+            $remaining = $sale->total - $paidAmount;
+            if ($remaining > 0) {
+                $yearlyPartialRemaining += $remaining;
+            }
+        }
+        
+        $yearlyOutstandingCredit = $yearlyPendingCredit + $yearlyPartialRemaining;
+        
+        // ========== STOCK & OTHER DATA ==========
+        
         // Get low stock products
         $lowStockProducts = \App\Models\Product::whereRaw('stock_quantity <= minimum_stock')
             ->where('stock_quantity', '>', 0)
@@ -129,6 +243,7 @@ class DashboardController extends Controller
             ->get();
         
         return view('dashboard.index', compact(
+            // Profit & Loss
             'todaySales',
             'todayCost',
             'todayProfit',
@@ -141,6 +256,14 @@ class DashboardController extends Controller
             'yearlyCost',
             'yearlyProfit',
             'yearlyMargin',
+            // Cash Received & Outstanding Credit
+            'todayCashReceived',
+            'todayOutstandingCredit',
+            'monthlyCashReceived',
+            'monthlyOutstandingCredit',
+            'yearlyCashReceived',
+            'yearlyOutstandingCredit',
+            // Stock & Other
             'lowStockProducts',
             'outOfStockProducts',
             'supplierBalance',

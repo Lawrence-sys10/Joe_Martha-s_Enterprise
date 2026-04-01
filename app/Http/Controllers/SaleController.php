@@ -20,26 +20,45 @@ class SaleController extends Controller
     }
 
     public function index(Request $request)
-    {
-        $filters = [
-            'start_date' => $request->get('start_date'),
-            'end_date' => $request->get('end_date'),
-            'customer_id' => $request->get('customer_id'),
-            'status' => $request->get('status'),
-            'payment_method' => $request->get('payment_method'),
-        ];
-        
-        $sales = $this->salesService->getAllSales(20, $filters);
-        
-        // Calculate statistics
-        $totalSales = Sale::where('status', 'completed')->sum('total');
-        $todaySales = Sale::whereDate('created_at', today())->where('status', 'completed')->sum('total');
-        $todayCount = Sale::whereDate('created_at', today())->where('status', 'completed')->count();
-        $totalTransactions = Sale::count();
-        $avgSaleValue = $totalTransactions > 0 ? $totalSales / $totalTransactions : 0;
-        
-        return view('sales.index', compact('sales', 'totalSales', 'todaySales', 'todayCount', 'totalTransactions', 'avgSaleValue'));
-    }
+{
+    $filters = [
+        'start_date' => $request->get('start_date'),
+        'end_date' => $request->get('end_date'),
+        'customer_id' => $request->get('customer_id'),
+        'status' => $request->get('status'),
+        'payment_method' => $request->get('payment_method'),
+        'payment_status' => $request->get('payment_status'),
+    ];
+    
+    $sales = $this->salesService->getAllSales(20, $filters);
+    
+    // Calculate statistics - ALL sales included (no separation)
+    $totalSales = Sale::where('status', 'completed')->sum('total');
+    $todaySales = Sale::whereDate('created_at', today())->where('status', 'completed')->sum('total');
+    $todayCount = Sale::whereDate('created_at', today())->where('status', 'completed')->count();
+    $totalTransactions = Sale::count();
+    $avgSaleValue = $totalTransactions > 0 ? $totalSales / $totalTransactions : 0;
+    
+    // Calculate credit sales statistics - CORRECTED
+    
+    // PENDING CREDIT = Credit sales with NO payment received (pending status)
+    $pendingCredit = Sale::where('payment_method', 'credit')
+        ->where('payment_status', 'pending')
+        ->sum('total');
+    
+    // PARTIAL PAYMENTS = Total amount COLLECTED from partially paid credit sales
+    $partialCredit = \App\Models\Payment::whereHas('sale', function($query) {
+        $query->where('payment_method', 'credit')
+            ->where('payment_status', 'partial');
+    })->sum('amount');
+    
+    // PAID CREDIT = Total amount of fully paid credit sales (the total sale amount, not just payments)
+    $paidCredit = Sale::where('payment_method', 'credit')
+        ->where('payment_status', 'paid')
+        ->sum('total');
+    
+    return view('sales.index', compact('sales', 'totalSales', 'todaySales', 'todayCount', 'totalTransactions', 'avgSaleValue', 'pendingCredit', 'partialCredit', 'paidCredit'));
+}
 
     public function create()
     {
@@ -66,14 +85,42 @@ class SaleController extends Controller
         }
 
         try {
+            DB::beginTransaction();
+            
             $sale = $this->salesService->createSale($request->all(), $request->items);
+            
+            // Set paid_amount from request
+            $sale->paid_amount = $request->paid_amount;
+            
+            // Unified payment logic - no separation for credit sales
+            if ($request->paid_amount >= $sale->total) {
+                $sale->payment_status = 'paid';
+                $sale->status = 'completed';
+            } elseif ($request->paid_amount > 0) {
+                $sale->payment_status = 'partial';
+                $sale->status = 'completed';
+            } else {
+                $sale->payment_status = 'pending';
+                $sale->status = 'completed';
+            }
+            
+            $sale->save();
+            
+            DB::commit();
+            
             return response()->json([
                 'success' => true,
                 'message' => 'Sale completed successfully!',
                 'sale_id' => $sale->id,
-                'invoice_number' => $sale->invoice_number
+                'invoice_number' => $sale->invoice_number,
+                'payment_status' => $sale->payment_status,
+                'status' => $sale->status,
+                'total' => $sale->total,
+                'paid_amount' => $sale->paid_amount,
+                'balance_due' => $sale->total - $sale->paid_amount
             ]);
         } catch (\Exception $e) {
+            DB::rollBack();
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage()
@@ -84,11 +131,40 @@ class SaleController extends Controller
     public function show(Sale $sale)
     {
         $sale->load('customer', 'user', 'items.product', 'payments');
-        return view('sales.show', compact('sale'));
+        
+        // Calculate total paid from payments table
+        $totalPaidFromPayments = $sale->payments()->sum('amount');
+        
+        // Update the sale's paid_amount to match the actual payments
+        $sale->paid_amount = $totalPaidFromPayments;
+        
+        // Calculate remaining balance
+        $remainingBalance = $sale->total - $totalPaidFromPayments;
+        
+        // Update payment status based on actual payments
+        if ($totalPaidFromPayments >= $sale->total) {
+            $sale->payment_status = 'paid';
+            $sale->status = 'completed';
+        } elseif ($totalPaidFromPayments > 0) {
+            $sale->payment_status = 'partial';
+            $sale->status = 'completed';
+        } else {
+            $sale->payment_status = 'pending';
+            $sale->status = 'completed';
+        }
+        $sale->save();
+        
+        return view('sales.show', compact('sale', 'remainingBalance', 'totalPaidFromPayments'));
     }
 
     public function printReceipt(Sale $sale)
     {
+        // Only allow printing if payment is fully paid
+        $totalPaid = $sale->payments()->sum('amount');
+        if ($totalPaid < $sale->total) {
+            return redirect()->back()->with('error', 'Receipt can only be printed for fully paid sales.');
+        }
+        
         return $this->salesService->generateReceipt($sale);
     }
     
@@ -129,6 +205,7 @@ class SaleController extends Controller
             }
             
             $sale->status = Sale::STATUS_CANCELLED;
+            $sale->payment_status = 'cancelled';
             $sale->notes = ($sale->notes ? $sale->notes . "\n" : '') . "Voided: {$request->reason}";
             $sale->save();
             
@@ -140,6 +217,50 @@ class SaleController extends Controller
             DB::rollBack();
             return redirect()->back()
                 ->with('error', 'Failed to void sale: ' . $e->getMessage());
+        }
+    }
+    
+    public function updatePaymentStatus(Request $request, Sale $sale)
+    {
+        $request->validate([
+            'paid_amount' => 'required|numeric|min:0',
+        ]);
+        
+        try {
+            DB::beginTransaction();
+            
+            $totalPaid = $sale->payments()->sum('amount') + $request->paid_amount;
+            
+            // Unified payment status logic
+            if ($totalPaid >= $sale->total) {
+                $sale->payment_status = 'paid';
+                $sale->status = 'completed';
+            } elseif ($totalPaid > 0) {
+                $sale->payment_status = 'partial';
+                $sale->status = 'completed';
+            } else {
+                $sale->payment_status = 'pending';
+                $sale->status = 'completed';
+            }
+            $sale->paid_amount = $totalPaid;
+            $sale->save();
+            
+            DB::commit();
+            
+            return response()->json([
+                'success' => true,
+                'payment_status' => $sale->payment_status,
+                'status' => $sale->status,
+                'total_paid' => $totalPaid,
+                'balance_due' => $sale->total - $totalPaid,
+                'message' => 'Payment status updated successfully!'
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 400);
         }
     }
 }

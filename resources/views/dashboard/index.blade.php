@@ -96,8 +96,8 @@
                                 <p class="text-xl font-bold text-red-600">0 {{ $product->unit }}s</p>
                             </div>
                             <div class="flex gap-2">
-                                <a href="{{ route('products.edit', $product) }}" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-lg text-sm transition-colors">
-                                    Restock Now
+                                <a href="{{ route('suppliers.index') }}" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-lg text-sm transition-colors">
+                                    Restock
                                 </a>
                             </div>
                         </div>
@@ -146,7 +146,7 @@
                                 <p class="text-xs text-gray-500 mt-1">{{ number_format($percentage, 0) }}% of min stock</p>
                             </div>
                             <div>
-                                <a href="{{ route('products.edit', $product) }}" class="bg-amber-500 hover:bg-amber-600 text-white px-3 py-1 rounded-lg text-sm transition-colors">
+                                <a href="{{ route('suppliers.index') }}" class="bg-amber-500 hover:bg-amber-600 text-white px-3 py-1 rounded-lg text-sm transition-colors">
                                     Restock
                                 </a>
                             </div>
@@ -290,15 +290,32 @@
                         <p class="text-2xl font-bold text-blue-700 mt-2">GHS {{ number_format($todaySales, 2) }}</p>
                         <p class="text-xs text-blue-500 mt-1">Revenue generated today</p>
                     </div>
+                    <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-5">
+                        <p class="text-sm text-green-600 font-medium">Cash Received</p>
+                        <p class="text-2xl font-bold text-green-700 mt-2">GHS {{ number_format($todayCashReceived, 2) }}</p>
+                        <p class="text-xs text-green-500 mt-1">Full Payments + Payments on Partial</p>
+                    </div>
+                    <div class="bg-gradient-to-br from-red-50 to-red-100 rounded-xl p-5">
+                        <p class="text-sm text-red-600 font-medium">Outstanding Credit</p>
+                        <p class="text-2xl font-bold text-red-700 mt-2">GHS {{ number_format($todayOutstandingCredit, 2) }}</p>
+                        <p class="text-xs text-red-500 mt-1">Pending + Remaining balance on partial</p>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
                     <div class="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-5">
                         <p class="text-sm text-orange-600 font-medium">Cost of Goods Sold</p>
                         <p class="text-2xl font-bold text-orange-700 mt-2">GHS {{ number_format($todayCost, 2) }}</p>
                         <p class="text-xs text-orange-500 mt-1">Cost of products sold</p>
                     </div>
-                    <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-5">
-                        <p class="text-sm text-green-600 font-medium">Gross Profit</p>
-                        <p class="text-2xl font-bold text-green-700 mt-2">GHS {{ number_format($todayProfit, 2) }}</p>
-                        <p class="text-xs text-green-500 mt-1">Margin: {{ number_format($todayMargin, 1) }}%</p>
+                    <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-5">
+                        <p class="text-sm text-purple-600 font-medium">Gross Profit</p>
+                        <p class="text-2xl font-bold text-purple-700 mt-2">GHS {{ number_format($todayProfit, 2) }}</p>
+                        <p class="text-xs text-purple-500 mt-1">Margin: {{ number_format($todayMargin, 1) }}%</p>
+                    </div>
+                    <div class="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-xl p-5">
+                        <p class="text-sm text-yellow-600 font-medium">Collection Rate</p>
+                        <p class="text-2xl font-bold text-yellow-700 mt-2">{{ $todaySales > 0 ? number_format(($todayCashReceived / $todaySales) * 100, 1) : 0 }}%</p>
+                        <p class="text-xs text-yellow-500 mt-1">Cash Received / Total Sales</p>
                     </div>
                 </div>
             </div>
@@ -311,15 +328,32 @@
                         <p class="text-2xl font-bold text-blue-700 mt-2">GHS {{ number_format($monthlySales, 2) }}</p>
                         <p class="text-xs text-blue-500 mt-1">Revenue this month</p>
                     </div>
+                    <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-5">
+                        <p class="text-sm text-green-600 font-medium">Cash Received</p>
+                        <p class="text-2xl font-bold text-green-700 mt-2">GHS {{ number_format($monthlyCashReceived, 2) }}</p>
+                        <p class="text-xs text-green-500 mt-1">Full Payments + Payments on Partial</p>
+                    </div>
+                    <div class="bg-gradient-to-br from-red-50 to-red-100 rounded-xl p-5">
+                        <p class="text-sm text-red-600 font-medium">Outstanding Credit</p>
+                        <p class="text-2xl font-bold text-red-700 mt-2">GHS {{ number_format($monthlyOutstandingCredit, 2) }}</p>
+                        <p class="text-xs text-red-500 mt-1">Pending + Remaining balance on partial</p>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
                     <div class="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-5">
                         <p class="text-sm text-orange-600 font-medium">Cost of Goods Sold</p>
                         <p class="text-2xl font-bold text-orange-700 mt-2">GHS {{ number_format($monthlyCost, 2) }}</p>
                         <p class="text-xs text-orange-500 mt-1">Cost of products sold</p>
                     </div>
-                    <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-5">
-                        <p class="text-sm text-green-600 font-medium">Gross Profit</p>
-                        <p class="text-2xl font-bold text-green-700 mt-2">GHS {{ number_format($monthlyProfit, 2) }}</p>
-                        <p class="text-xs text-green-500 mt-1">Margin: {{ number_format($monthlyMargin, 1) }}%</p>
+                    <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-5">
+                        <p class="text-sm text-purple-600 font-medium">Gross Profit</p>
+                        <p class="text-2xl font-bold text-purple-700 mt-2">GHS {{ number_format($monthlyProfit, 2) }}</p>
+                        <p class="text-xs text-purple-500 mt-1">Margin: {{ number_format($monthlyMargin, 1) }}%</p>
+                    </div>
+                    <div class="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-xl p-5">
+                        <p class="text-sm text-yellow-600 font-medium">Collection Rate</p>
+                        <p class="text-2xl font-bold text-yellow-700 mt-2">{{ $monthlySales > 0 ? number_format(($monthlyCashReceived / $monthlySales) * 100, 1) : 0 }}%</p>
+                        <p class="text-xs text-yellow-500 mt-1">Cash Received / Total Sales</p>
                     </div>
                 </div>
             </div>
@@ -332,15 +366,32 @@
                         <p class="text-2xl font-bold text-blue-700 mt-2">GHS {{ number_format($yearlySales, 2) }}</p>
                         <p class="text-xs text-blue-500 mt-1">Revenue this year</p>
                     </div>
+                    <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-5">
+                        <p class="text-sm text-green-600 font-medium">Cash Received</p>
+                        <p class="text-2xl font-bold text-green-700 mt-2">GHS {{ number_format($yearlyCashReceived, 2) }}</p>
+                        <p class="text-xs text-green-500 mt-1">Full Payments + Payments on Partial</p>
+                    </div>
+                    <div class="bg-gradient-to-br from-red-50 to-red-100 rounded-xl p-5">
+                        <p class="text-sm text-red-600 font-medium">Outstanding Credit</p>
+                        <p class="text-2xl font-bold text-red-700 mt-2">GHS {{ number_format($yearlyOutstandingCredit, 2) }}</p>
+                        <p class="text-xs text-red-500 mt-1">Pending + Remaining balance on partial</p>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
                     <div class="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-5">
                         <p class="text-sm text-orange-600 font-medium">Cost of Goods Sold</p>
                         <p class="text-2xl font-bold text-orange-700 mt-2">GHS {{ number_format($yearlyCost, 2) }}</p>
                         <p class="text-xs text-orange-500 mt-1">Cost of products sold</p>
                     </div>
-                    <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-5">
-                        <p class="text-sm text-green-600 font-medium">Gross Profit</p>
-                        <p class="text-2xl font-bold text-green-700 mt-2">GHS {{ number_format($yearlyProfit, 2) }}</p>
-                        <p class="text-xs text-green-500 mt-1">Margin: {{ number_format($yearlyMargin, 1) }}%</p>
+                    <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-5">
+                        <p class="text-sm text-purple-600 font-medium">Gross Profit</p>
+                        <p class="text-2xl font-bold text-purple-700 mt-2">GHS {{ number_format($yearlyProfit, 2) }}</p>
+                        <p class="text-xs text-purple-500 mt-1">Margin: {{ number_format($yearlyMargin, 1) }}%</p>
+                    </div>
+                    <div class="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-xl p-5">
+                        <p class="text-sm text-yellow-600 font-medium">Collection Rate</p>
+                        <p class="text-2xl font-bold text-yellow-700 mt-2">{{ $yearlySales > 0 ? number_format(($yearlyCashReceived / $yearlySales) * 100, 1) : 0 }}%</p>
+                        <p class="text-xs text-yellow-500 mt-1">Cash Received / Total Sales</p>
                     </div>
                 </div>
             </div>
@@ -348,7 +399,7 @@
             <div class="bg-gray-50 px-6 py-3 border-t border-gray-200">
                 <div class="flex justify-between text-sm text-gray-600">
                     <span>📊 Profit Margin = (Revenue - Cost) / Revenue × 100%</span>
-                    <span>💰 Higher margin means better profitability</span>
+                    <span>💰 Collection Rate = Cash Received / Total Sales × 100%</span>
                 </div>
             </div>
         </div>
@@ -518,7 +569,7 @@
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                         </svg>
-                        <span>View Daily-Reports</span>
+                        <span>Daily Sales-Reports</span>
                     </a>
                     @endcan
                 </div>

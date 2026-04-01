@@ -95,19 +95,19 @@
         </div>
         
         <!-- Filters -->
-        <div class="bg-white rounded-2xl shadow-lg border border-amber-100 p-6 mb-6">
-            <form method="GET" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="filter-section">
+            <form method="GET" class="filter-grid">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
-                    <input type="date" name="start_date" value="{{ request('start_date') }}" class="w-full rounded-lg border-gray-300 focus:border-amber-500 focus:ring-amber-500">
+                    <label class="filter-label">Start Date</label>
+                    <input type="date" name="start_date" value="{{ request('start_date') }}" class="w-full rounded-lg border-gray-300 focus:border-amber-500 focus:ring-amber-500 filter-input">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">End Date</label>
-                    <input type="date" name="end_date" value="{{ request('end_date') }}" class="w-full rounded-lg border-gray-300 focus:border-amber-500 focus:ring-amber-500">
+                    <label class="filter-label">End Date</label>
+                    <input type="date" name="end_date" value="{{ request('end_date') }}" class="w-full rounded-lg border-gray-300 focus:border-amber-500 focus:ring-amber-500 filter-input">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Category</label>
-                    <select name="category" class="w-full rounded-lg border-gray-300 focus:border-amber-500 focus:ring-amber-500">
+                    <label class="filter-label">Category</label>
+                    <select name="category" class="w-full rounded-lg border-gray-300 focus:border-amber-500 focus:ring-amber-500 filter-select">
                         <option value="">All Categories</option>
                         <option value="Rent" {{ request('category') == 'Rent' ? 'selected' : '' }}>🏢 Rent</option>
                         <option value="Utilities" {{ request('category') == 'Utilities' ? 'selected' : '' }}>💡 Utilities</option>
@@ -121,9 +121,9 @@
                         <option value="Other" {{ request('category') == 'Other' ? 'selected' : '' }}>📝 Other</option>
                     </select>
                 </div>
-                <div class="flex items-end gap-2">
-                    <button type="submit" class="w-full bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold py-2 px-4 rounded-lg transition-all">Apply</button>
-                    <a href="{{ route('expenses.index') }}" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg transition-all">Reset</a>
+                <div class="filter-actions">
+                    <button type="submit" class="w-full filter-btn text-white font-bold py-2 px-4 rounded-lg transition-all">Apply</button>
+                    <a href="{{ route('expenses.index') }}" class="clear-btn text-white font-bold py-2 px-4 rounded-lg transition-all">Reset</a>
                 </div>
             </form>
         </div>
@@ -218,3 +218,4 @@ function confirmDelete(id) {
 }
 </script>
 @endsection
+

@@ -28,20 +28,42 @@
             <form method="POST" action="{{ route('suppliers.store') }}" id="supplierForm">
                 @csrf
                 
-                <div class="p-8 space-y-6">
-                    <!-- Basic Information -->
-                    <div>
-                        <div class="flex items-center gap-3 mb-6">
-                            <div class="w-10 h-10 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl flex items-center justify-center">
+                <div class="p-8">
+                    <!-- Progress Indicator -->
+                    <div class="flex justify-between mb-8">
+                        <div class="flex-1 text-center">
+                            <div class="w-10 h-10 bg-amber-500 text-white rounded-full flex items-center justify-center mx-auto mb-2 shadow-md">
+                                <span class="text-sm font-bold">1</span>
+                            </div>
+                            <p class="text-xs font-medium text-gray-600">Basic Info</p>
+                        </div>
+                        <div class="flex-1 text-center">
+                            <div class="w-10 h-10 bg-gray-200 text-gray-500 rounded-full flex items-center justify-center mx-auto mb-2">
+                                <span class="text-sm font-bold">2</span>
+                            </div>
+                            <p class="text-xs font-medium text-gray-500">Contact & Terms</p>
+                        </div>
+                        <div class="flex-1 text-center">
+                            <div class="w-10 h-10 bg-gray-200 text-gray-500 rounded-full flex items-center justify-center mx-auto mb-2">
+                                <span class="text-sm font-bold">3</span>
+                            </div>
+                            <p class="text-xs font-medium text-gray-500">Additional</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Basic Information Section -->
+                    <div class="mb-8">
+                        <div class="flex items-center gap-3 mb-6 pb-2 border-b border-gray-200">
+                            <div class="w-10 h-10 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl flex items-center justify-center shadow-md">
                                 <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
                                 </svg>
                             </div>
-                            <h3 class="text-xl font-bold text-gray-800">Supplier Information</h3>
+                            <h3 class="text-lg font-semibold text-gray-800">Basic Information</h3>
                         </div>
                         
-                        <div class="space-y-4">
-                            <div class="group">
+                        <div class="space-y-5">
+                            <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">
                                     Supplier Name <span class="text-red-500">*</span>
                                 </label>
@@ -52,15 +74,13 @@
                                         </svg>
                                     </div>
                                     <input type="text" name="name" value="{{ old('name') }}" required
-                                           class="pl-10 w-full rounded-xl border-2 border-gray-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all duration-200">
+                                           class="pl-10 w-full rounded-lg border-2 border-gray-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all duration-200 py-2.5">
                                 </div>
-                                @error('name')
-                                    <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
-                                @enderror
+                                @error('name')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
                             </div>
                             
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div class="group">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
                                     <div class="relative">
                                         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -69,14 +89,12 @@
                                             </svg>
                                         </div>
                                         <input type="text" name="phone" value="{{ old('phone') }}"
-                                               class="pl-10 w-full rounded-xl border-2 border-gray-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all duration-200">
+                                               class="pl-10 w-full rounded-lg border-2 border-gray-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all duration-200 py-2.5">
                                     </div>
-                                    @error('phone')
-                                        <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
-                                    @enderror
+                                    @error('phone')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
                                 </div>
                                 
-                                <div class="group">
+                                <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
                                     <div class="relative">
                                         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -85,15 +103,13 @@
                                             </svg>
                                         </div>
                                         <input type="email" name="email" value="{{ old('email') }}"
-                                               class="pl-10 w-full rounded-xl border-2 border-gray-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all duration-200">
+                                               class="pl-10 w-full rounded-lg border-2 border-gray-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all duration-200 py-2.5">
                                     </div>
-                                    @error('email')
-                                        <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
-                                    @enderror
+                                    @error('email')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
                                 </div>
                             </div>
                             
-                            <div class="group">
+                            <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Address</label>
                                 <div class="relative">
                                     <div class="absolute top-3 left-3">
@@ -103,56 +119,54 @@
                                         </svg>
                                     </div>
                                     <textarea name="address" rows="2" 
-                                              class="pl-10 w-full rounded-xl border-2 border-gray-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all duration-200">{{ old('address') }}</textarea>
+                                              class="pl-10 w-full rounded-lg border-2 border-gray-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all duration-200">{{ old('address') }}</textarea>
                                 </div>
-                                @error('address')
-                                    <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
-                                @enderror
+                                @error('address')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
                             </div>
                         </div>
                     </div>
                     
-                    <!-- Contact Person (Optional) -->
-                    <div class="border-t border-gray-200 pt-6">
-                        <div class="flex items-center gap-3 mb-4">
-                            <div class="w-10 h-10 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-xl flex items-center justify-center">
+                    <!-- Contact Person Section -->
+                    <div class="mb-8">
+                        <div class="flex items-center gap-3 mb-6 pb-2 border-b border-gray-200">
+                            <div class="w-10 h-10 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-xl flex items-center justify-center shadow-md">
                                 <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
                                 </svg>
                             </div>
-                            <h3 class="text-xl font-bold text-gray-800">Contact Person (Optional)</h3>
+                            <h3 class="text-lg font-semibold text-gray-800">Contact Person (Optional)</h3>
                         </div>
                         
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div class="group">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Contact Person Name</label>
                                 <input type="text" name="contact_person" value="{{ old('contact_person') }}"
-                                       class="w-full rounded-xl border-2 border-gray-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all duration-200">
+                                       class="w-full rounded-lg border-2 border-gray-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all duration-200 py-2.5">
                             </div>
                             
-                            <div class="group">
+                            <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Contact Phone</label>
                                 <input type="text" name="contact_person_phone" value="{{ old('contact_person_phone') }}"
-                                       class="w-full rounded-xl border-2 border-gray-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all duration-200">
+                                       class="w-full rounded-lg border-2 border-gray-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all duration-200 py-2.5">
                             </div>
                         </div>
                     </div>
                     
-                    <!-- Payment Terms -->
-                    <div class="border-t border-gray-200 pt-6">
-                        <div class="flex items-center gap-3 mb-4">
-                            <div class="w-10 h-10 bg-gradient-to-br from-purple-400 to-pink-500 rounded-xl flex items-center justify-center">
+                    <!-- Payment Terms Section -->
+                    <div class="mb-8">
+                        <div class="flex items-center gap-3 mb-6 pb-2 border-b border-gray-200">
+                            <div class="w-10 h-10 bg-gradient-to-br from-purple-400 to-pink-500 rounded-xl flex items-center justify-center shadow-md">
                                 <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                 </svg>
                             </div>
-                            <h3 class="text-xl font-bold text-gray-800">Payment Terms</h3>
+                            <h3 class="text-lg font-semibold text-gray-800">Payment Terms</h3>
                         </div>
                         
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div class="group">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Payment Terms (Days)</label>
-                                <select name="payment_terms" class="w-full rounded-xl border-2 border-gray-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200">
+                                <select name="payment_terms" class="w-full rounded-lg border-2 border-gray-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all duration-200 py-2.5">
                                     <option value="30">Net 30 days</option>
                                     <option value="15">Net 15 days</option>
                                     <option value="7">Net 7 days</option>
@@ -161,54 +175,59 @@
                                 <p class="text-xs text-gray-500 mt-1">When payment is expected</p>
                             </div>
                             
-                            <div class="group">
+                            <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-2">Opening Balance (GHS)</label>
                                 <div class="relative">
-                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <span class="text-gray-400 font-semibold">₵</span>
-                                    </div>
+                                    <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">₵</span>
                                     <input type="number" name="opening_balance" value="{{ old('opening_balance', 0) }}" step="0.01"
-                                           class="pl-8 w-full rounded-xl border-2 border-gray-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all duration-200">
+                                           class="pl-7 w-full rounded-lg border-2 border-gray-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all duration-200 py-2.5">
                                 </div>
                                 <p class="text-xs text-gray-500 mt-1">Initial balance if you already owe this supplier</p>
+                                @error('opening_balance')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
                             </div>
                         </div>
                     </div>
                     
-                    <!-- Notes -->
-                    <div class="border-t border-gray-200 pt-6">
-                        <div class="flex items-center gap-3 mb-4">
-                            <div class="w-10 h-10 bg-gradient-to-br from-blue-400 to-cyan-500 rounded-xl flex items-center justify-center">
+                    <!-- Notes & Status Section -->
+                    <div class="mb-6">
+                        <div class="flex items-center gap-3 mb-6 pb-2 border-b border-gray-200">
+                            <div class="w-10 h-10 bg-gradient-to-br from-blue-400 to-cyan-500 rounded-xl flex items-center justify-center shadow-md">
                                 <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
                                 </svg>
                             </div>
-                            <h3 class="text-xl font-bold text-gray-800">Notes (Optional)</h3>
+                            <h3 class="text-lg font-semibold text-gray-800">Additional Information</h3>
                         </div>
                         
-                        <textarea name="notes" rows="2" 
-                                  class="w-full rounded-xl border-2 border-gray-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all duration-200"
-                                  placeholder="Any additional notes about this supplier...">{{ old('notes') }}</textarea>
-                    </div>
-                    
-                    <!-- Active Status -->
-                    <div class="border-t border-gray-200 pt-6">
-                        <label class="inline-flex items-center cursor-pointer">
-                            <input type="checkbox" name="is_active" value="1" {{ old('is_active', true) ? 'checked' : '' }}
-                                   class="rounded border-gray-300 text-amber-500 focus:ring-amber-500 w-5 h-5">
-                            <span class="ml-3 text-sm text-gray-700">Active Supplier</span>
-                        </label>
-                        <p class="text-xs text-gray-500 mt-1 ml-8">Inactive suppliers won't appear in purchase orders</p>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Notes</label>
+                            <textarea name="notes" rows="2" 
+                                      class="w-full rounded-lg border-2 border-gray-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all duration-200"
+                                      placeholder="Any additional notes about this supplier...">{{ old('notes') }}</textarea>
+                            @error('notes')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
+                        </div>
+                        
+                        <div class="mt-5">
+                            <label class="inline-flex items-center cursor-pointer">
+                                <input type="checkbox" name="is_active" value="1" {{ old('is_active', true) ? 'checked' : '' }}
+                                       class="rounded border-gray-300 text-amber-500 focus:ring-amber-500 w-4 h-4">
+                                <span class="ml-3 text-sm text-gray-700">Active Supplier</span>
+                            </label>
+                            <p class="text-xs text-gray-500 mt-1 ml-7">Inactive suppliers won't appear in purchase orders</p>
+                        </div>
                     </div>
                 </div>
                 
                 <!-- Form Actions -->
-                <div class="bg-gradient-to-r from-gray-50 to-gray-100 px-8 py-4 border-t border-gray-200">
+                <div class="bg-gray-50 px-8 py-5 border-t border-gray-200">
                     <div class="flex justify-end gap-3">
-                        <a href="{{ route('suppliers.index') }}" class="px-6 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 font-semibold rounded-xl transition-all">
+                        <a href="{{ route('suppliers.index') }}" class="px-6 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-lg transition-all duration-200">
                             Cancel
                         </a>
-                        <button type="submit" class="px-6 py-2 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-semibold rounded-xl shadow-md transition-all transform hover:scale-105">
+                        <button type="submit" class="px-6 py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-medium rounded-lg shadow-md transition-all flex items-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                            </svg>
                             Create Supplier
                         </button>
                     </div>
@@ -244,6 +263,16 @@
             e.target.value = value;
         });
     }
+    
+    // Form validation
+    document.getElementById('supplierForm').addEventListener('submit', function(e) {
+        const name = document.querySelector('input[name="name"]');
+        if (!name.value.trim()) {
+            e.preventDefault();
+            alert('Please enter supplier name');
+            name.focus();
+        }
+    });
 </script>
 @endpush
 @endsection

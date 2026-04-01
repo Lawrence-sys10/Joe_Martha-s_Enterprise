@@ -3,8 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\Supplier;
+use App\Models\Purchase;
+use App\Models\PurchaseItem;
+use App\Models\Product;
+use App\Models\StockMovement;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
 
 class SupplierController extends Controller
 {
@@ -95,22 +100,24 @@ class SupplierController extends Controller
         return redirect()->route('suppliers.index')
             ->with('success', 'Supplier deleted successfully!');
     }
+    
     public function createPurchase(Supplier $supplier)
     {
-        $products = \App\Models\Product::where('is_active', true)->get();
+        $products = Product::where('is_active', true)->get();
         return view('suppliers.purchase', compact('supplier', 'products'));
     }
 
     public function storePurchase(Request $request, Supplier $supplier)
     {
-        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
+        $validator = Validator::make($request->all(), [
             'purchase_date' => 'required|date',
             'due_date' => 'nullable|date',
             'notes' => 'nullable|string',
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity' => 'required|integer|min:1',
-            'items.*.unit_price' => 'required|numeric|min:0',
+            'items.*.cost_price' => 'required|numeric|min:0', // What you pay the supplier
+            'items.*.unit_price' => 'required|numeric|min:0', // What customers will pay
         ]);
 
         if ($validator->fails()) {
@@ -118,15 +125,16 @@ class SupplierController extends Controller
         }
 
         try {
-            \Illuminate\Support\Facades\DB::beginTransaction();
+            DB::beginTransaction();
             
             $invoiceNumber = $this->generatePurchaseInvoiceNumber();
             
+            // Calculate totals using COST PRICE (what you pay the supplier)
             $subtotal = 0;
             $tax = 0;
             
             foreach ($request->items as $item) {
-                $itemTotal = $item['quantity'] * $item['unit_price'];
+                $itemTotal = $item['quantity'] * $item['cost_price']; // Use cost_price for total
                 $itemTax = $itemTotal * 0.125;
                 $subtotal += $itemTotal;
                 $tax += $itemTax;
@@ -134,7 +142,8 @@ class SupplierController extends Controller
             
             $total = $subtotal + $tax;
             
-            $purchase = \App\Models\Purchase::create([
+            // Create purchase
+            $purchase = Purchase::create([
                 'supplier_id' => $supplier->id,
                 'invoice_number' => $invoiceNumber,
                 'purchase_date' => $request->purchase_date,
@@ -148,34 +157,64 @@ class SupplierController extends Controller
                 'user_id' => auth()->id(),
             ]);
             
+            // Create purchase items and update products
             foreach ($request->items as $item) {
-                \App\Models\PurchaseItem::create([
+                $itemTotal = $item['quantity'] * $item['cost_price'];
+                
+                PurchaseItem::create([
                     'purchase_id' => $purchase->id,
                     'product_id' => $item['product_id'],
                     'quantity' => $item['quantity'],
-                    'unit_price' => $item['unit_price'],
-                    'total' => $item['quantity'] * $item['unit_price'],
+                    'cost_price' => $item['cost_price'], // Store purchase price
+                    'unit_price' => $item['unit_price'], // Store selling price
+                    'total' => $itemTotal,
                 ]);
                 
-                $product = \App\Models\Product::find($item['product_id']);
+                // Update product
+                $product = Product::find($item['product_id']);
+                $oldStock = $product->stock_quantity;
+                $oldCostPrice = $product->cost_price;
+                
+                // Update stock quantity
                 $product->stock_quantity += $item['quantity'];
                 
+                // Update cost price using weighted average (based on purchase cost)
                 if ($product->stock_quantity > 0) {
-                    $newTotalCost = ($product->cost_price * ($product->stock_quantity - $item['quantity'])) + ($item['unit_price'] * $item['quantity']);
+                    $oldTotalCost = $oldCostPrice * $oldStock;
+                    $newTotalCost = $oldTotalCost + ($item['cost_price'] * $item['quantity']);
                     $product->cost_price = $newTotalCost / $product->stock_quantity;
                 }
+                
+                // Update unit price (selling price) - this is the NEW selling price
+                $product->unit_price = $item['unit_price'];
+                
                 $product->save();
+                
+                // Record stock movement
+                StockMovement::create([
+                    'product_id' => $product->id,
+                    'type' => StockMovement::TYPE_PURCHASE,
+                    'quantity' => $item['quantity'],
+                    'before_quantity' => $oldStock,
+                    'after_quantity' => $product->stock_quantity,
+                    'reference_type' => Purchase::class,
+                    'reference_id' => $purchase->id,
+                    'notes' => "Purchase: Cost GHS {$item['cost_price']} | Sell GHS {$item['unit_price']} | Qty: {$item['quantity']}",
+                    'user_id' => auth()->id(),
+                ]);
             }
             
+            // Update supplier balance (what you owe) - based on COST PRICE total
             $supplier->current_balance += $total;
             $supplier->save();
             
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
             
             return redirect()->route('suppliers.show', $supplier)
-                ->with('success', 'Purchase order created successfully!');
+                ->with('success', 'Purchase order created successfully! Invoice: ' . $invoiceNumber);
+                
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
+            DB::rollBack();
             return redirect()->back()
                 ->with('error', 'Failed to create purchase: ' . $e->getMessage())
                 ->withInput();
@@ -186,7 +225,7 @@ class SupplierController extends Controller
     {
         $year = date('Y');
         $month = date('m');
-        $lastPurchase = \App\Models\Purchase::whereYear('created_at', $year)
+        $lastPurchase = Purchase::whereYear('created_at', $year)
             ->whereMonth('created_at', $month)
             ->orderBy('id', 'desc')
             ->first();

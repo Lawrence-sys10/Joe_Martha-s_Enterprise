@@ -11,14 +11,17 @@
                     <p class="text-amber-100 text-sm mt-1">{{ $purchase->invoice_number }}</p>
                 </div>
                 <div class="flex gap-3">
+                    @if($balance > 0)
+                    <button onclick="openPaymentModal()" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-all flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        Make Payment
+                    </button>
+                    @endif
                     <a href="{{ route('suppliers.show', $purchase->supplier) }}" class="bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white font-bold py-2 px-4 rounded-lg transition-all">
                         Back to Supplier
                     </a>
-                    @if($purchase->balance > 0)
-                    <button onclick="openPaymentModal()" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-all">
-                        Record Payment
-                    </button>
-                    @endif
                 </div>
             </div>
         </div>
@@ -28,131 +31,153 @@
 @section('content')
 <div class="py-12">
     <div class="max-w-4xl mx-auto sm:px-6 lg:px-8">
-        <!-- Purchase Summary -->
+        <!-- Purchase Information Card -->
         <div class="bg-white rounded-2xl shadow-xl border border-amber-100 overflow-hidden mb-6">
+            <div class="bg-gradient-to-r from-amber-50 to-orange-50 px-6 py-4 border-b border-amber-100">
+                <h3 class="text-lg font-semibold text-gray-800">Purchase Information</h3>
+            </div>
             <div class="p-6">
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <p class="text-sm text-gray-500">Invoice Number</p>
                         <p class="text-lg font-bold text-gray-800">{{ $purchase->invoice_number }}</p>
                     </div>
                     <div>
                         <p class="text-sm text-gray-500">Purchase Date</p>
-                        <p class="text-lg font-bold text-gray-800">{{ $purchase->purchase_date->format('Y-m-d') }}</p>
+                        <p class="text-lg font-bold text-gray-800">{{ \Carbon\Carbon::parse($purchase->purchase_date)->format('F d, Y') }}</p>
                     </div>
                     <div>
-                        <p class="text-sm text-gray-500">Due Date</p>
-                        <p class="text-lg font-bold text-gray-800">{{ $purchase->due_date ? $purchase->due_date->format('Y-m-d') : 'N/A' }}</p>
+                        <p class="text-sm text-gray-500">Supplier</p>
+                        <p class="text-lg font-bold text-gray-800">{{ $purchase->supplier->name }}</p>
                     </div>
                     <div>
-                        <p class="text-sm text-gray-500">Status</p>
-                        <span class="px-2 py-1 inline-flex text-sm leading-5 font-semibold rounded-full {{ $purchase->status == 'completed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800' }}">
-                            {{ ucfirst($purchase->status) }}
-                        </span>
+                        <!-- Empty for spacing -->
                     </div>
                 </div>
                 
-                <!-- Payment Progress -->
-                <div class="mt-6 pt-6 border-t">
-                    <div class="flex justify-between text-sm text-gray-600 mb-2">
-                        <span>Payment Status: {{ ucfirst($purchase->payment_status) }}</span>
-                        <span>Paid: GHS {{ number_format($purchase->paid_amount, 2) }} / GHS {{ number_format($purchase->total, 2) }}</span>
+                <div class="mt-6 pt-4 border-t border-gray-200">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div class="bg-gray-50 rounded-lg p-3 text-center">
+                            <p class="text-xs text-gray-500">Payment Status</p>
+                            <p class="text-lg font-bold {{ $purchase->payment_status == 'paid' ? 'text-green-600' : ($purchase->payment_status == 'partial' ? 'text-yellow-600' : 'text-red-600') }}">
+                                {{ ucfirst($purchase->payment_status) }}
+                            </p>
+                        </div>
+                        <div class="bg-gray-50 rounded-lg p-3 text-center">
+                            <p class="text-xs text-gray-500">Total Amount</p>
+                            <p class="text-lg font-bold text-gray-800">GHS {{ number_format($purchase->total, 2) }}</p>
+                        </div>
+                        <div class="bg-gray-50 rounded-lg p-3 text-center">
+                            <p class="text-xs text-gray-500">Paid Amount</p>
+                            <p class="text-lg font-bold text-green-600">GHS {{ number_format($paidAmount ?? 0, 2) }}</p>
+                        </div>
+                        <div class="bg-gray-50 rounded-lg p-3 text-center">
+                            <p class="text-xs text-gray-500">Balance</p>
+                            <p class="text-lg font-bold {{ $balance > 0 ? 'text-red-600' : 'text-green-600' }}">
+                                GHS {{ number_format($balance ?? 0, 2) }}
+                            </p>
+                        </div>
                     </div>
-                    <div class="w-full bg-gray-200 rounded-full h-2">
-                        <div class="bg-green-500 h-2 rounded-full" style="width: {{ $purchase->payment_percentage }}%"></div>
+                    
+                    @if($balance == 0)
+                    <div class="mt-4 bg-green-50 border border-green-200 rounded-lg p-3 text-center">
+                        <span class="text-green-600 font-semibold">✓ Fully Paid</span>
                     </div>
-                    @if($purchase->balance > 0)
-                    <p class="text-sm text-red-600 mt-2">Remaining Balance: GHS {{ number_format($purchase->balance, 2) }}</p>
-                    @else
-                    <p class="text-sm text-green-600 mt-2">✓ Fully Paid</p>
+                    @elseif($balance > 0 && $paidAmount > 0)
+                    <div class="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-center">
+                        <span class="text-yellow-600 font-semibold">⚠ Partially Paid - Balance: GHS {{ number_format($balance, 2) }}</span>
+                    </div>
+                    @elseif($balance > 0)
+                    <div class="mt-4 bg-red-50 border border-red-200 rounded-lg p-3 text-center">
+                        <span class="text-red-600 font-semibold">⚠ Pending Payment - Balance: GHS {{ number_format($balance, 2) }}</span>
+                    </div>
                     @endif
                 </div>
             </div>
         </div>
         
-        <!-- Items Table -->
-        <div class="bg-white rounded-2xl shadow-xl border border-amber-100 overflow-hidden mb-6">
+        <!-- Items Table - Showing Cost Price (Purchase Price) -->
+        <div class="bg-white rounded-2xl shadow-xl border border-amber-100 overflow-hidden">
             <div class="bg-gradient-to-r from-amber-50 to-orange-50 px-6 py-4 border-b border-amber-100">
                 <h3 class="text-lg font-semibold text-gray-800">Items Purchased</h3>
+                <p class="text-sm text-gray-500 mt-1">Cost price is what you paid the supplier</p>
             </div>
-            <div class="overflow-x-auto">
+            <div class="overflow-x-auto p-6">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
                             <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Quantity</th>
-                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Unit Price</th>
-                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Total</th>
-                        </thead>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Cost Price (GHS)</th>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Total (GHS)</th>
+                        </tr>
+                    </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
                         @foreach($purchase->items as $item)
-                        <tr>
+                        <tr class="hover:bg-gray-50">
                             <td class="px-6 py-4 text-sm text-gray-900">{{ $item->product->name }}</td>
-                            <td class="px-6 py-4 text-sm text-right text-gray-900">{{ $item->quantity }}</td>
-                            <td class="px-6 py-4 text-sm text-right text-gray-900">GHS {{ number_format($item->unit_price, 2) }}</td>
-                            <td class="px-6 py-4 text-sm text-right font-semibold">GHS {{ number_format($item->total, 2) }}</td>
+                            <td class="px-6 py-4 text-right text-sm text-gray-600">{{ $item->quantity }}</td>
+                            <td class="px-6 py-4 text-right text-sm text-gray-600 font-mono">
+                                @php
+                                    // Use cost_price if available, otherwise use unit_price as fallback
+                                    $displayCost = isset($item->cost_price) ? $item->cost_price : ($item->unit_price ?? 0);
+                                @endphp
+                                GHS {{ number_format($displayCost, 2) }}
+                            </td>
+                            <td class="px-6 py-4 text-right text-sm font-semibold text-gray-800">GHS {{ number_format($item->total, 2) }}</td>
                         </tr>
                         @endforeach
                     </tbody>
                     <tfoot class="bg-gray-50">
                         <tr>
                             <td colspan="3" class="px-6 py-4 text-right font-semibold">Subtotal:</td>
-                            <td class="px-6 py-4 text-right">GHS {{ number_format($purchase->subtotal, 2) }}</td>
+                            <td class="px-6 py-4 text-right font-semibold">GHS {{ number_format($purchase->subtotal, 2) }}</td>
                         </tr>
                         <tr>
-                            <td colspan="3" class="px-6 py-4 text-right">Tax (12.5%):</td>
-                            <td class="px-6 py-4 text-right">GHS {{ number_format($purchase->tax, 2) }}</td>
+                            <td colspan="3" class="px-6 py-4 text-right font-semibold">Tax (12.5%):</td>
+                            <td class="px-6 py-4 text-right font-semibold">GHS {{ number_format($purchase->tax, 2) }}</td>
                         </tr>
-                        <tr class="border-t-2">
-                            <td colspan="3" class="px-6 py-4 text-right text-lg font-bold">Total:</td>
-                            <td class="px-6 py-4 text-right text-lg font-bold text-amber-600">GHS {{ number_format($purchase->total, 2) }}</td>
+                        <tr class="border-t border-gray-200">
+                            <td colspan="3" class="px-6 py-4 text-right font-bold">Total to Pay Supplier:</td>
+                            <td class="px-6 py-4 text-right font-bold text-amber-600">GHS {{ number_format($purchase->total, 2) }}</td>
                         </tr>
                     </tfoot>
                 </table>
             </div>
         </div>
         
-        <!-- Payment History -->
-        <div class="bg-white rounded-2xl shadow-xl border border-amber-100 overflow-hidden">
+        <!-- Payment History Section -->
+        @if($purchase->payments && $purchase->payments->count() > 0)
+        <div class="bg-white rounded-2xl shadow-xl border border-amber-100 overflow-hidden mt-6">
             <div class="bg-gradient-to-r from-amber-50 to-orange-50 px-6 py-4 border-b border-amber-100">
                 <h3 class="text-lg font-semibold text-gray-800">Payment History</h3>
             </div>
-            <div class="p-6">
-                @if($purchase->payments->count() > 0)
-                <div class="space-y-3">
-                    @foreach($purchase->payments as $payment)
-                    <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                                <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                </svg>
-                            </div>
-                            <div>
-                                <p class="font-medium text-gray-800">{{ $payment->payment_number }}</p>
-                                <p class="text-xs text-gray-500">{{ $payment->payment_date->format('Y-m-d H:i:s') }}</p>
-                            </div>
-                        </div>
-                        <div class="text-right">
-                            <p class="font-bold text-green-600">GHS {{ number_format($payment->amount, 2) }}</p>
-                            <p class="text-xs text-gray-500">{{ ucfirst(str_replace('_', ' ', $payment->payment_method)) }}</p>
-                        </div>
-                    </div>
-                    @endforeach
-                </div>
-                @else
-                <div class="text-center py-8">
-                    <svg class="w-16 h-16 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                    <p class="text-gray-500">No payments recorded yet</p>
-                    @if($purchase->balance > 0)
-                    <button onclick="openPaymentModal()" class="mt-2 text-amber-600 hover:text-amber-800">Record First Payment →</button>
-                    @endif
-                </div>
-                @endif
+            <div class="overflow-x-auto p-6">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Payment #</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Amount</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Method</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reference</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        @foreach($purchase->payments as $payment)
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 text-sm font-mono text-gray-600">{{ $payment->payment_number }}</td>
+                            <td class="px-6 py-4 text-sm text-gray-600">{{ \Carbon\Carbon::parse($payment->payment_date)->format('M d, Y') }}</td>
+                            <td class="px-6 py-4 text-right text-sm font-semibold text-green-600">GHS {{ number_format($payment->amount, 2) }}</td>
+                            <td class="px-6 py-4 text-sm text-gray-600">{{ ucfirst(str_replace('_', ' ', $payment->payment_method)) }}</td>
+                            <td class="px-6 py-4 text-sm text-gray-500">{{ $payment->reference_number ?? 'N/A' }}</td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
             </div>
         </div>
+        @endif
     </div>
 </div>
 
@@ -170,20 +195,25 @@
             </div>
         </div>
         
-        <form method="POST" action="{{ route('purchases.payment', $purchase) }}" class="p-6">
+        <form id="paymentForm" method="POST" action="{{ route('purchases.payment.store', $purchase) }}">
             @csrf
-            <div class="space-y-4">
+            <div class="p-6 space-y-4">
+                <div class="bg-gray-50 p-3 rounded-lg">
+                    <p class="text-sm text-gray-600">Purchase Order</p>
+                    <p class="font-semibold text-gray-800">{{ $purchase->invoice_number }}</p>
+                </div>
+                
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Amount (GHS)</label>
                     <div class="relative">
                         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                             <span class="text-gray-400 font-semibold">₵</span>
                         </div>
-                        <input type="number" name="amount" step="0.01" max="{{ $purchase->balance }}" required
+                        <input type="number" name="amount" id="paymentAmount" step="0.01" required
                                class="pl-8 w-full rounded-xl border-2 border-gray-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200"
-                               placeholder="0.00">
+                               placeholder="0.00" value="{{ $balance }}">
                     </div>
-                    <p class="text-xs text-gray-500 mt-1">Remaining balance: GHS {{ number_format($purchase->balance, 2) }}</p>
+                    <p class="text-xs text-gray-500 mt-1">Remaining balance: GHS {{ number_format($balance, 2) }}</p>
                 </div>
                 
                 <div>
@@ -215,7 +245,7 @@
                 </div>
             </div>
             
-            <div class="mt-6 flex justify-end gap-3">
+            <div class="bg-gray-50 px-6 py-4 rounded-b-2xl flex justify-end gap-3">
                 <button type="button" onclick="closePaymentModal()" class="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg transition-colors">
                     Cancel
                 </button>
@@ -238,6 +268,26 @@
         document.getElementById('paymentModal').classList.add('hidden');
         document.getElementById('paymentModal').classList.remove('flex');
     }
+    
+    const amountInput = document.getElementById('paymentAmount');
+    const maxAmount = {{ $balance }};
+    
+    if (amountInput) {
+        amountInput.max = maxAmount;
+        amountInput.addEventListener('input', function() {
+            let value = parseFloat(this.value);
+            if (value > maxAmount) {
+                this.value = maxAmount;
+                alert('Amount cannot exceed the remaining balance!');
+            }
+        });
+    }
+    
+    document.getElementById('paymentModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closePaymentModal();
+        }
+    });
 </script>
 @endpush
 @endsection
