@@ -34,7 +34,7 @@
                         <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
                         </svg>
-                        Order Details
+                        Supplier Information
                     </h3>
                 </div>
                 <div class="p-5">
@@ -131,18 +131,14 @@
                         <p class="text-gray-400 text-xs mt-1">Click "Add Item" to start adding products</p>
                     </div>
                     
-                    <!-- Summary - IMPORTANT: Total is based on COST PRICE, not selling price -->
+                    <!-- Summary - NO TAX (supplier includes tax in cost price) -->
                     <div class="mt-6 border-t border-gray-200 pt-4 hidden" id="summary-section">
                         <div class="flex justify-end">
                             <div class="w-80">
                                 <div class="space-y-2">
                                     <div class="flex justify-between text-sm">
-                                        <span class="text-gray-600">Subtotal (Based on Purchase Cost):</span>
+                                        <span class="text-gray-600">Total Purchase Cost:</span>
                                         <span id="subtotal" class="font-semibold text-gray-800">GHS 0.00</span>
-                                    </div>
-                                    <div class="flex justify-between text-sm">
-                                        <span class="text-gray-600">Tax (12.5%):</span>
-                                        <span id="tax" class="font-semibold text-gray-800">GHS 0.00</span>
                                     </div>
                                     <div class="border-t border-gray-200 pt-2 mt-1">
                                         <div class="flex justify-between">
@@ -475,15 +471,12 @@
         const currentCost = parseFloat(selectedOption?.dataset?.cost) || 0;
         const currentUnit = parseFloat(selectedOption?.dataset?.unitPrice) || 0;
         
-        // Update current prices display
         document.getElementById(`current-cost-${itemId}`).innerText = currentCost.toFixed(2);
         document.getElementById(`current-unit-${itemId}`).innerText = currentUnit.toFixed(2);
         
-        // Pre-fill new price inputs with current values
         document.querySelector(`input[name="items[${itemId}][cost_price]"]`).value = currentCost;
         document.querySelector(`input[name="items[${itemId}][unit_price]"]`).value = currentUnit;
         
-        // Update comparisons and recommendations
         updatePriceComparison(itemId, 'cost');
         updatePriceComparison(itemId, 'unit');
         updateRecommendation(itemId);
@@ -555,7 +548,7 @@
     function updateItemTotal(itemId) {
         const quantity = parseInt(document.querySelector(`input[name="items[${itemId}][quantity]"]`)?.value) || 0;
         const costPrice = parseFloat(document.querySelector(`input[name="items[${itemId}][cost_price]"]`)?.value) || 0;
-        const total = quantity * costPrice; // Using COST PRICE for total calculation
+        const total = quantity * costPrice;
         
         const totalSpan = document.querySelector(`.item-total[data-id="${itemId}"]`);
         if (totalSpan) {
@@ -587,11 +580,10 @@
             }
         });
         
-        const tax = subtotal * 0.125;
-        const total = subtotal + tax;
+        // NO TAX - supplier already includes tax in cost price
+        const total = subtotal;
         
         document.getElementById('subtotal').innerHTML = `GHS ${subtotal.toFixed(2)}`;
-        document.getElementById('tax').innerHTML = `GHS ${tax.toFixed(2)}`;
         document.getElementById('total').innerHTML = `GHS ${total.toFixed(2)}`;
     }
     

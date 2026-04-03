@@ -65,7 +65,7 @@
             </div>
         </div>
         
-        <!-- Items Table -->
+        <!-- Items Table - Tax Removed -->
         <div class="bg-white rounded-2xl shadow-xl border border-amber-100 overflow-hidden mb-6">
             <div class="bg-gradient-to-r from-amber-50 to-orange-50 px-6 py-4 border-b border-amber-100">
                 <h3 class="text-lg font-semibold text-gray-800">Items Sold</h3>
@@ -93,10 +93,6 @@
                         <tr>
                             <td colspan="3" class="px-6 py-4 text-right font-semibold text-gray-800">Subtotal:</td>
                             <td class="px-6 py-4 text-right font-semibold text-gray-800">GHS {{ number_format($sale->subtotal, 2) }}</td>
-                        </tr>
-                        <tr>
-                            <td colspan="3" class="px-6 py-4 text-right text-gray-700">Tax (12.5%):</td>
-                            <td class="px-6 py-4 text-right text-gray-700">GHS {{ number_format($sale->tax, 2) }}</td>
                         </tr>
                         @if($sale->discount > 0)
                         <tr>

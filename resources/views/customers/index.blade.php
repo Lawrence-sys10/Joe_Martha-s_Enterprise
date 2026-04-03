@@ -19,9 +19,6 @@
                         Add Customer
                     </a>
                     @endcan
-                    <a href="{{ route('customers.index') }}" class="bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white font-bold py-2 px-4 rounded-lg transition-all">
-                        Refresh
-                    </a>
                 </div>
             </div>
         </div>
@@ -164,6 +161,7 @@
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
+                        <tr>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer Details</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
@@ -177,7 +175,7 @@
                         <tr class="hover:bg-amber-50 transition-colors duration-200">
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <span class="text-sm font-mono text-gray-500">#{{ $customer->id }}</span>
-                             </div>
+                            </td>
                             <td class="px-6 py-4">
                                 <div class="flex items-center">
                                     <div class="flex-shrink-0 h-10 w-10">
@@ -190,7 +188,7 @@
                                         <div class="text-xs text-gray-500">{{ Str::limit($customer->address ?? 'No address', 30) }}</div>
                                     </div>
                                 </div>
-                             </div>
+                             </td>
                             <td class="px-6 py-4">
                                 <div class="text-sm text-gray-900">
                                     @if($customer->email)
@@ -210,7 +208,7 @@
                                     </div>
                                     @endif
                                 </div>
-                             </div>
+                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-right">
                                 <span class="text-sm font-bold {{ $customer->current_balance > 0 ? 'text-red-600' : ($customer->current_balance < 0 ? 'text-green-600' : 'text-gray-600') }}">
                                     GHS {{ number_format($customer->current_balance, 2) }}
@@ -218,13 +216,13 @@
                                 @if($customer->current_balance > 0)
                                 <div class="text-xs text-red-500">Due</div>
                                 @endif
-                             </div>
+                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-right">
                                 <span class="text-sm text-gray-700">GHS {{ number_format($customer->credit_limit ?? 0, 2) }}</span>
-                             </div>
+                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-center">
                                 <span class="text-sm text-gray-500">{{ $customer->created_at->format('M d, Y') }}</span>
-                             </div>
+                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-center">
                                 <div class="flex items-center justify-center gap-2">
                                     <button onclick="showAddCreditModal({{ $customer->id }}, '{{ addslashes($customer->name) }}')" 
@@ -251,10 +249,10 @@
                                     </a>
                                     @endcan
                                 </div>
-                             </div>
-                         </div>
+                             </td>
+                         </tr>
                         @empty
-                        32
+                         <tr>
                             <td colspan="7" class="px-6 py-12 text-center">
                                 <svg class="w-24 h-24 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
@@ -269,20 +267,20 @@
                                     Add Customer
                                 </a>
                                 @endcan
-                             </div>
-                         </div>
+                             </td>
+                         </tr>
                         @endforelse
                     </tbody>
                     <tfoot class="bg-gray-50 border-t border-gray-200">
                         <tr class="font-semibold">
-                            <td colspan="3" class="px-6 py-4 text-right">Total Balance Due: </div>
+                            <td colspan="3" class="px-6 py-4 text-right">Total Balance Due: </td>
                             <td class="px-6 py-4 text-right text-lg font-bold text-red-600">
                                 GHS {{ number_format($customers->sum('current_balance'), 2) }}
-                             </div>
-                            <td colspan="3"></div>
-                         </div>
+                             </td>
+                            <td colspan="3"></td>
+                         </tr>
                     </tfoot>
-                 </div>
+                </table>
             </div>
             
             <div class="px-6 py-4 border-t border-gray-200">

@@ -19,11 +19,17 @@ class PaymentController extends Controller
     /**
      * Show payment details
      */
-    public function show($id)
-    {
-        $payment = PurchasePayment::with('purchase.supplier')->findOrFail($id);
-        return view('payments.show', compact('payment'));
-    }
+   public function show($id)
+{
+    $payment = PurchasePayment::with(['purchase.supplier'])->findOrFail($id);
+    $purchase = $payment->purchase;
+    
+    // Calculate balance if needed
+    $totalPaid = $purchase->payments()->sum('amount');
+    $balance = $purchase->total - $totalPaid;
+    
+    return view('purchases.show', compact('purchase', 'balance'));
+}
     
     /**
      * Print payment receipt

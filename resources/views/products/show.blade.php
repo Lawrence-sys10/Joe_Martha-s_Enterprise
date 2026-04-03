@@ -8,11 +8,11 @@
             {{ __('Product Details: ' . $product->name) }}
         </h2>
         <div class="flex gap-3">
-            <a href="{{ route('products.index') }}" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg">
+            <a href="{{ route('products.index') }}" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg transition-all">
                 Back to Products
             </a>
             @can('edit products')
-            <a href="{{ route('products.edit', $product) }}" class="bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 px-4 rounded-lg">
+            <a href="{{ route('products.edit', $product) }}" class="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold py-2 px-4 rounded-lg transition-all">
                 Edit Product
             </a>
             @endcan
@@ -23,7 +23,7 @@
 @section('content')
 <div class="py-12">
     <div class="max-w-4xl mx-auto sm:px-6 lg:px-8">
-        <div class="bg-white rounded-xl shadow-sm border border-amber-100 overflow-hidden">
+        <div class="bg-white rounded-2xl shadow-xl border border-amber-100 overflow-hidden">
             <div class="p-6">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <!-- Product Image -->
@@ -46,38 +46,47 @@
                             @endif
                         </div>
                         
-                        <div class="flex justify-between items-center">
+                        <div class="grid grid-cols-2 gap-4">
                             <div>
-                                <p class="text-sm text-gray-600">Unit Price</p>
-                                <p class="text-3xl font-bold text-amber-600">GHS {{ number_format($product->unit_price, 2) }}</p>
+                                <p class="text-sm text-gray-600">Unit Price (Selling)</p>
+                                <p class="text-2xl font-bold text-amber-600">GHS {{ number_format($product->unit_price, 2) }}</p>
                             </div>
                             <div>
-                                <p class="text-sm text-gray-600">Cost Price</p>
+                                <p class="text-sm text-gray-600">Cost Price (Purchase)</p>
                                 <p class="text-lg text-gray-600">GHS {{ number_format($product->cost_price, 2) }}</p>
-                            </div>
-                            <div>
-                                <p class="text-sm text-gray-600">Profit Margin</p>
-                                <p class="text-lg text-green-600">{{ number_format((($product->unit_price - $product->cost_price) / $product->unit_price) * 100, 1) }}%</p>
+                                <p class="text-xs text-gray-400">(Tax included)</p>
                             </div>
                         </div>
                         
-                        <div class="grid grid-cols-2 gap-4 pt-4 border-t">
+                        <div class="flex justify-between items-center pb-4 border-b">
+                            <div>
+                                <p class="text-sm text-gray-600">Profit Margin</p>
+                                <p class="text-xl font-bold text-green-600">{{ number_format((($product->unit_price - $product->cost_price) / $product->unit_price) * 100, 1) }}%</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-600">Profit per Unit</p>
+                                <p class="text-xl font-bold text-green-600">GHS {{ number_format($product->unit_price - $product->cost_price, 2) }}</p>
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-4">
                             <div>
                                 <p class="text-sm text-gray-600">Current Stock</p>
-                                <p class="text-2xl font-bold {{ $product->isLowStock() ? 'text-red-600' : 'text-green-600' }}">
+                                <p class="text-2xl font-bold {{ $product->stock_quantity <= $product->minimum_stock ? 'text-red-600' : 'text-green-600' }}">
                                     {{ $product->stock_quantity }} {{ $product->unit }}s
                                 </p>
                                 @if($product->minimum_stock > 0)
-                                <p class="text-xs text-gray-500">Minimum: {{ $product->minimum_stock }}</p>
+                                <p class="text-xs text-gray-500">Minimum stock: {{ $product->minimum_stock }} {{ $product->unit }}s</p>
                                 @endif
+                                <p class="text-xs text-gray-400 mt-1">Stock added via purchase orders</p>
                             </div>
                             <div>
                                 <p class="text-sm text-gray-600">Category</p>
-                                <p class="text-lg">{{ $product->category->name ?? 'Uncategorized' }}</p>
+                                <p class="text-lg font-medium">{{ $product->category->name ?? 'Uncategorized' }}</p>
                             </div>
                             <div>
-                                <p class="text-sm text-gray-600">Tax Rate</p>
-                                <p class="text-lg">{{ $product->tax_rate }}%</p>
+                                <p class="text-sm text-gray-600">Unit</p>
+                                <p class="text-lg font-medium">{{ $product->unit }}</p>
                             </div>
                             <div>
                                 <p class="text-sm text-gray-600">Status</p>
@@ -104,36 +113,40 @@
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
                                 <tr>
-                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                                    <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Quantity</th>
-                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Notes</th>
-                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">User</th>
-                                </tr>
-                            </thead>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Quantity</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Notes</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">User</th>
+                                 </thead>
                             <tbody class="bg-white divide-y divide-gray-200">
                                 @foreach($product->stockMovements->sortByDesc('created_at') as $movement)
-                                <tr>
-                                    <td class="px-4 py-2 text-sm">{{ $movement->created_at->format('Y-m-d H:i') }}</td>
-                                    <td class="px-4 py-2 text-sm">
+                                    <td class="px-4 py-3 text-sm">{{ $movement->created_at->format('Y-m-d H:i') }}</td>
+                                    <td class="px-4 py-3 text-sm">
                                         <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
                                             {{ $movement->type == 'purchase' ? 'bg-green-100 text-green-800' : 
                                                ($movement->type == 'sale' ? 'bg-blue-100 text-blue-800' : 'bg-yellow-100 text-yellow-800') }}">
                                             {{ ucfirst($movement->type) }}
                                         </span>
-                                    </td>
-                                    <td class="px-4 py-2 text-sm text-right {{ $movement->type == 'sale' ? 'text-red-600' : 'text-green-600' }}">
+                                     </div>
+                                    <td class="px-4 py-3 text-sm text-right {{ $movement->type == 'sale' ? 'text-red-600' : 'text-green-600' }}">
                                         {{ $movement->type == 'sale' ? '-' : '+' }}{{ $movement->quantity }}
-                                    </td>
-                                    <td class="px-4 py-2 text-sm">{{ $movement->notes }}</td>
-                                    <td class="px-4 py-2 text-sm">{{ $movement->user->name ?? 'System' }}</td>
-                                </tr>
+                                     </div>
+                                    <td class="px-4 py-3 text-sm">{{ $movement->notes }}</div>
+                                    <td class="px-4 py-3 text-sm">{{ $movement->user->name ?? 'System' }}</div>
+                                 </tr>
                                 @endforeach
                             </tbody>
-                        </table>
+                         </div>
                     </div>
                     @else
-                    <p class="text-gray-500">No stock movements recorded yet.</p>
+                    <div class="text-center py-8 bg-gray-50 rounded-lg">
+                        <svg class="w-12 h-12 text-gray-300 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        <p class="text-gray-500">No stock movements recorded yet.</p>
+                        <p class="text-sm text-gray-400 mt-1">Stock will appear when you create purchase orders</p>
+                    </div>
                     @endif
                 </div>
             </div>

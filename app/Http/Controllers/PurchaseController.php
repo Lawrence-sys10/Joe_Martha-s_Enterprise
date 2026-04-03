@@ -61,8 +61,8 @@ class PurchaseController extends Controller
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity' => 'required|integer|min:1',
-            'items.*.cost_price' => 'required|numeric|min:0', // This is what you pay the supplier
-            'items.*.unit_price' => 'required|numeric|min:0', // This is what customers will pay
+            'items.*.cost_price' => 'required|numeric|min:0', // What you pay the supplier (tax included)
+            'items.*.unit_price' => 'required|numeric|min:0', // What customers will pay
         ]);
 
         if ($validator->fails()) {
@@ -72,22 +72,17 @@ class PurchaseController extends Controller
         try {
             DB::beginTransaction();
             
-            // Generate invoice number
             $invoiceNumber = $this->generateInvoiceNumber();
             
-            // Calculate totals using COST PRICE (what you pay the supplier)
+            // Calculate totals using COST PRICE (tax already included by supplier)
             $subtotal = 0;
-            $tax = 0;
             
             foreach ($request->items as $item) {
-                // IMPORTANT: Use cost_price for purchase total
                 $itemTotal = $item['quantity'] * $item['cost_price'];
-                $itemTax = $itemTotal * 0.125;
                 $subtotal += $itemTotal;
-                $tax += $itemTax;
             }
             
-            $total = $subtotal + $tax;
+            $total = $subtotal; // No tax added
             
             // Create purchase
             $purchase = Purchase::create([
@@ -96,7 +91,7 @@ class PurchaseController extends Controller
                 'purchase_date' => $request->purchase_date,
                 'due_date' => $request->due_date,
                 'subtotal' => $subtotal,
-                'tax' => $tax,
+                'tax' => 0, // No tax since supplier includes it
                 'total' => $total,
                 'status' => 'pending',
                 'payment_status' => 'pending',
@@ -112,7 +107,7 @@ class PurchaseController extends Controller
                     'purchase_id' => $purchase->id,
                     'product_id' => $item['product_id'],
                     'quantity' => $item['quantity'],
-                    'cost_price' => $item['cost_price'], // Purchase price from supplier
+                    'cost_price' => $item['cost_price'], // Purchase price from supplier (tax included)
                     'unit_price' => $item['unit_price'], // Selling price to customers
                     'total' => $itemTotal,
                     'expiry_date' => $item['expiry_date'] ?? null,
@@ -126,7 +121,7 @@ class PurchaseController extends Controller
                 // Update stock quantity
                 $product->stock_quantity += $item['quantity'];
                 
-                // Update cost price using weighted average (based on purchase cost)
+                // Update cost price using weighted average (based on purchase cost, tax included)
                 if ($product->stock_quantity > 0) {
                     $oldTotalCost = $oldCostPrice * $oldStock;
                     $newTotalCost = $oldTotalCost + ($item['cost_price'] * $item['quantity']);
@@ -147,14 +142,14 @@ class PurchaseController extends Controller
                     'after_quantity' => $product->stock_quantity,
                     'reference_type' => Purchase::class,
                     'reference_id' => $purchase->id,
-                    'notes' => "Purchase: Cost GHS {$item['cost_price']} | Sell GHS {$item['unit_price']} | Qty: {$item['quantity']}",
+                    'notes' => "Purchase: Cost GHS {$item['cost_price']} (tax incl.) | Sell GHS {$item['unit_price']} | Qty: {$item['quantity']}",
                     'user_id' => auth()->id(),
                 ]);
             }
             
-            // Update supplier balance (what you owe the supplier) - based on COST PRICE
+            // Update supplier balance (what you owe the supplier) - based on COST PRICE total (tax included)
             $supplier = Supplier::find($request->supplier_id);
-            $supplier->current_balance += $total; // Total is based on cost_price
+            $supplier->current_balance += $total;
             $supplier->save();
             
             DB::commit();
@@ -172,10 +167,9 @@ class PurchaseController extends Controller
 
     public function show(Purchase $purchase)
     {
-        $purchase->load('supplier', 'user', 'items.product', 'payments');
+        $purchase->load(['supplier', 'items.product', 'payments.user']);
         
-        // Calculate paid amount and balance
-        $paidAmount = $purchase->payments()->sum('amount');
+        $paidAmount = $purchase->payments->sum('amount');
         $balance = $purchase->total - $paidAmount;
         
         return view('purchases.show', compact('purchase', 'paidAmount', 'balance'));
@@ -214,7 +208,6 @@ class PurchaseController extends Controller
         try {
             DB::beginTransaction();
             
-            // Restore stock
             foreach ($purchase->items as $item) {
                 $product = $item->product;
                 $oldStock = $product->stock_quantity;
@@ -234,7 +227,6 @@ class PurchaseController extends Controller
                 ]);
             }
             
-            // Restore supplier balance
             $supplier = $purchase->supplier;
             $supplier->current_balance -= $purchase->total;
             $supplier->save();

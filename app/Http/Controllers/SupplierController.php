@@ -116,7 +116,7 @@ class SupplierController extends Controller
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity' => 'required|integer|min:1',
-            'items.*.cost_price' => 'required|numeric|min:0', // What you pay the supplier
+            'items.*.cost_price' => 'required|numeric|min:0', // What you pay the supplier (tax included)
             'items.*.unit_price' => 'required|numeric|min:0', // What customers will pay
         ]);
 
@@ -129,18 +129,15 @@ class SupplierController extends Controller
             
             $invoiceNumber = $this->generatePurchaseInvoiceNumber();
             
-            // Calculate totals using COST PRICE (what you pay the supplier)
+            // Calculate totals using COST PRICE (tax already included by supplier)
             $subtotal = 0;
-            $tax = 0;
             
             foreach ($request->items as $item) {
-                $itemTotal = $item['quantity'] * $item['cost_price']; // Use cost_price for total
-                $itemTax = $itemTotal * 0.125;
+                $itemTotal = $item['quantity'] * $item['cost_price'];
                 $subtotal += $itemTotal;
-                $tax += $itemTax;
             }
             
-            $total = $subtotal + $tax;
+            $total = $subtotal; // No tax added
             
             // Create purchase
             $purchase = Purchase::create([
@@ -149,7 +146,7 @@ class SupplierController extends Controller
                 'purchase_date' => $request->purchase_date,
                 'due_date' => $request->due_date,
                 'subtotal' => $subtotal,
-                'tax' => $tax,
+                'tax' => 0, // No tax - supplier includes tax in cost price
                 'total' => $total,
                 'status' => 'pending',
                 'payment_status' => 'pending',
@@ -165,7 +162,7 @@ class SupplierController extends Controller
                     'purchase_id' => $purchase->id,
                     'product_id' => $item['product_id'],
                     'quantity' => $item['quantity'],
-                    'cost_price' => $item['cost_price'], // Store purchase price
+                    'cost_price' => $item['cost_price'], // Store purchase price (tax included)
                     'unit_price' => $item['unit_price'], // Store selling price
                     'total' => $itemTotal,
                 ]);
@@ -178,7 +175,7 @@ class SupplierController extends Controller
                 // Update stock quantity
                 $product->stock_quantity += $item['quantity'];
                 
-                // Update cost price using weighted average (based on purchase cost)
+                // Update cost price using weighted average (based on purchase cost, tax included)
                 if ($product->stock_quantity > 0) {
                     $oldTotalCost = $oldCostPrice * $oldStock;
                     $newTotalCost = $oldTotalCost + ($item['cost_price'] * $item['quantity']);
@@ -199,12 +196,12 @@ class SupplierController extends Controller
                     'after_quantity' => $product->stock_quantity,
                     'reference_type' => Purchase::class,
                     'reference_id' => $purchase->id,
-                    'notes' => "Purchase: Cost GHS {$item['cost_price']} | Sell GHS {$item['unit_price']} | Qty: {$item['quantity']}",
+                    'notes' => "Purchase: Cost GHS {$item['cost_price']} (tax incl.) | Sell GHS {$item['unit_price']} | Qty: {$item['quantity']}",
                     'user_id' => auth()->id(),
                 ]);
             }
             
-            // Update supplier balance (what you owe) - based on COST PRICE total
+            // Update supplier balance (what you owe) - based on COST PRICE total (tax included)
             $supplier->current_balance += $total;
             $supplier->save();
             

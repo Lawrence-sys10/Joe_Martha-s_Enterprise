@@ -10,9 +10,14 @@
                     <h2 class="text-2xl font-bold text-white">Supplier Payments Report</h2>
                     <p class="text-amber-100 text-sm mt-1">Track all payments made to suppliers</p>
                 </div>
-                <a href="{{ route('dashboard') }}" class="bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white font-bold py-2 px-4 rounded-lg transition-all">
-                    Back to Dashboard
-                </a>
+                <div class="flex gap-3">
+                    <a href="{{ route('reports.supplier-payments.create') }}" class="bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white font-bold py-2 px-4 rounded-lg transition-all">
+                        + Record Payment
+                    </a>
+                    <a href="{{ route('dashboard') }}" class="bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white font-bold py-2 px-4 rounded-lg transition-all">
+                        Back to Dashboard
+                    </a>
+                </div>
             </div>
         </div>
     </div>
@@ -42,7 +47,7 @@
             </div>
         </div>
         @endif
-        
+
         <!-- Summary Cards -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             <div class="bg-white rounded-2xl shadow-xl border border-amber-100 p-6 hover:shadow-xl transition-all">
@@ -57,7 +62,7 @@
                         </svg>
                     </div>
                 </div>
-                <div class="mt-4 text-xs text-gray-500">Total amount paid</div>
+                <div class="mt-4 text-xs text-gray-500">Total amount paid (filtered)</div>
             </div>
             
             <div class="bg-white rounded-2xl shadow-xl border border-amber-100 p-6 hover:shadow-xl transition-all">
@@ -72,7 +77,7 @@
                         </svg>
                     </div>
                 </div>
-                <div class="mt-4 text-xs text-gray-500">Number of payments</div>
+                <div class="mt-4 text-xs text-gray-500">Number of payments (filtered)</div>
             </div>
             
             <div class="bg-white rounded-2xl shadow-xl border border-amber-100 p-6 hover:shadow-xl transition-all">
@@ -164,7 +169,7 @@
                         <p class="text-sm text-gray-500 mt-1">All supplier payment records</p>
                     </div>
                     <div class="flex gap-2">
-                        <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">Total: {{ $payments->total() }}</span>
+                        <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">Showing: {{ $payments->count() }} of {{ $totalTransactionsCount }} payments</span>
                     </div>
                 </div>
             </div>
@@ -173,7 +178,7 @@
                     <thead class="bg-gray-50">
                         <tr>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment #</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date & Time</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Supplier</th>
                             <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Method</th>
@@ -187,11 +192,19 @@
                         <tr class="hover:bg-amber-50 transition-colors duration-200">
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="text-sm font-mono font-bold text-gray-900">{{ $payment->payment_number }}</div>
+                                @if($payment->purchase)
+                                <div class="text-xs text-gray-400">PO: {{ $payment->purchase->invoice_number }}</div>
+                                @endif
                              </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="text-sm text-gray-900">{{ \Carbon\Carbon::parse($payment->payment_date)->format('M d, Y') }}</div>
-                                <div class="text-xs text-gray-500">{{ \Carbon\Carbon::parse($payment->payment_date)->format('h:i A') }}</div>
-                             </td>
+                                <div class="text-xs text-gray-500">
+                                    <svg class="inline-block w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    {{ \Carbon\Carbon::parse($payment->created_at)->format('h:i A') }}
+                                </div>
+                              </td>
                             <td class="px-6 py-4">
                                 <div class="flex items-center">
                                     <div class="flex-shrink-0 h-8 w-8">
@@ -203,57 +216,66 @@
                                         <div class="text-sm font-medium text-gray-900">{{ $supplierName }}</div>
                                     </div>
                                 </div>
-                             </td>
+                              </td>
                             <td class="px-6 py-4 whitespace-nowrap text-right">
                                 <div class="text-sm font-bold text-green-600">GHS {{ number_format($payment->amount, 2) }}</div>
-                             </td>
+                              </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 
                                     {{ $payment->payment_method == 'cash' ? 'bg-green-100 text-green-800' : 
                                        ($payment->payment_method == 'bank_transfer' ? 'bg-blue-100 text-blue-800' : 
                                        ($payment->payment_method == 'mobile_money' ? 'bg-purple-100 text-purple-800' : 'bg-yellow-100 text-yellow-800')) }}">
-                                    @if($payment->payment_method == 'cash') Cash
-                                    @elseif($payment->payment_method == 'bank_transfer') Bank Transfer
-                                    @elseif($payment->payment_method == 'mobile_money') Mobile Money
-                                    @else Cheque
+                                    @if($payment->payment_method == 'cash') 💵 Cash
+                                    @elseif($payment->payment_method == 'bank_transfer') 🏦 Bank Transfer
+                                    @elseif($payment->payment_method == 'mobile_money') 📱 Mobile Money
+                                    @else 📝 Cheque
                                     @endif
                                 </span>
-                             </td>
+                              </td>
                             <td class="px-6 py-4 whitespace-nowrap text-center">
                                 <div class="flex items-center justify-center gap-2">
-                                    <a href="{{ route('payments.show', $payment->id) }}" class="text-amber-600 hover:text-amber-800 transition-colors" title="View Details">
+                                    @if($payment->purchase)
+                                    <a href="{{ route('purchases.show', $payment->purchase_id) }}" class="text-amber-600 hover:text-amber-800 transition-colors" title="View Purchase">
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0zM2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
                                         </svg>
                                     </a>
-                                    <a href="{{ route('payments.print', $payment->id) }}" class="text-green-600 hover:text-green-800 transition-colors" title="Print Receipt" target="_blank">
-                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
-                                        </svg>
-                                    </a>
+                                    @endif
                                 </div>
-                             </td>
-                         </tr>
+                              </td>
+                          </tr>
                         @empty
-                         <tr>
+                          <tr>
                             <td colspan="6" class="px-6 py-12 text-center">
                                 <svg class="w-24 h-24 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                 </svg>
                                 <h3 class="text-xl font-semibold text-gray-600 mb-2">No Payments Found</h3>
                                 <p class="text-gray-500 mb-4">No supplier payments recorded for this period</p>
+                                <a href="{{ route('reports.supplier-payments.create') }}" class="bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 px-4 rounded-lg transition-all">
+                                    + Record First Payment
+                                </a>
                             </td>
-                         </tr>
+                          </tr>
                         @endforelse
                     </tbody>
                     <tfoot class="bg-gray-50 border-t border-gray-200">
                         <tr class="font-semibold">
-                            <td colspan="3" class="px-6 py-4 text-right">Total:</td>
+                            <td colspan="3" class="px-6 py-4 text-right">Total for this page: </td>
                             <td class="px-6 py-4 text-right text-lg font-bold text-green-600">
                                 GHS {{ number_format($payments->sum('amount'), 2) }}
                             </td>
                             <td colspan="2"></td>
                         </tr>
+                        @if($totalPaymentsAmount != $payments->sum('amount'))
+                        <tr class="bg-amber-50">
+                            <td colspan="3" class="px-6 py-4 text-right font-bold">Grand Total (all pages): </td>
+                            <td class="px-6 py-4 text-right text-lg font-bold text-amber-600">
+                                GHS {{ number_format($totalPaymentsAmount, 2) }}
+                            </td>
+                            <td colspan="2"></td>
+                        </tr>
+                        @endif
                     </tfoot>
                 </table>
             </div>

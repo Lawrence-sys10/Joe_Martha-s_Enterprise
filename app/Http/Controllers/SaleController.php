@@ -20,45 +20,41 @@ class SaleController extends Controller
     }
 
     public function index(Request $request)
-{
-    $filters = [
-        'start_date' => $request->get('start_date'),
-        'end_date' => $request->get('end_date'),
-        'customer_id' => $request->get('customer_id'),
-        'status' => $request->get('status'),
-        'payment_method' => $request->get('payment_method'),
-        'payment_status' => $request->get('payment_status'),
-    ];
-    
-    $sales = $this->salesService->getAllSales(20, $filters);
-    
-    // Calculate statistics - ALL sales included (no separation)
-    $totalSales = Sale::where('status', 'completed')->sum('total');
-    $todaySales = Sale::whereDate('created_at', today())->where('status', 'completed')->sum('total');
-    $todayCount = Sale::whereDate('created_at', today())->where('status', 'completed')->count();
-    $totalTransactions = Sale::count();
-    $avgSaleValue = $totalTransactions > 0 ? $totalSales / $totalTransactions : 0;
-    
-    // Calculate credit sales statistics - CORRECTED
-    
-    // PENDING CREDIT = Credit sales with NO payment received (pending status)
-    $pendingCredit = Sale::where('payment_method', 'credit')
-        ->where('payment_status', 'pending')
-        ->sum('total');
-    
-    // PARTIAL PAYMENTS = Total amount COLLECTED from partially paid credit sales
-    $partialCredit = \App\Models\Payment::whereHas('sale', function($query) {
-        $query->where('payment_method', 'credit')
-            ->where('payment_status', 'partial');
-    })->sum('amount');
-    
-    // PAID CREDIT = Total amount of fully paid credit sales (the total sale amount, not just payments)
-    $paidCredit = Sale::where('payment_method', 'credit')
-        ->where('payment_status', 'paid')
-        ->sum('total');
-    
-    return view('sales.index', compact('sales', 'totalSales', 'todaySales', 'todayCount', 'totalTransactions', 'avgSaleValue', 'pendingCredit', 'partialCredit', 'paidCredit'));
-}
+    {
+        $filters = [
+            'start_date' => $request->get('start_date'),
+            'end_date' => $request->get('end_date'),
+            'customer_id' => $request->get('customer_id'),
+            'status' => $request->get('status'),
+            'payment_method' => $request->get('payment_method'),
+            'payment_status' => $request->get('payment_status'),
+        ];
+        
+        $sales = $this->salesService->getAllSales(20, $filters);
+        
+        // Calculate statistics - ALL sales included (no separation)
+        $totalSales = Sale::where('status', 'completed')->sum('total');
+        $todaySales = Sale::whereDate('created_at', today())->where('status', 'completed')->sum('total');
+        $todayCount = Sale::whereDate('created_at', today())->where('status', 'completed')->count();
+        $totalTransactions = Sale::count();
+        $avgSaleValue = $totalTransactions > 0 ? $totalSales / $totalTransactions : 0;
+        
+        // Calculate credit sales statistics
+        $pendingCredit = Sale::where('payment_method', 'credit')
+            ->where('payment_status', 'pending')
+            ->sum('total');
+        
+        $partialCredit = \App\Models\Payment::whereHas('sale', function($query) {
+            $query->where('payment_method', 'credit')
+                ->where('payment_status', 'partial');
+        })->sum('amount');
+        
+        $paidCredit = Sale::where('payment_method', 'credit')
+            ->where('payment_status', 'paid')
+            ->sum('total');
+        
+        return view('sales.index', compact('sales', 'totalSales', 'todaySales', 'todayCount', 'totalTransactions', 'avgSaleValue', 'pendingCredit', 'partialCredit', 'paidCredit'));
+    }
 
     public function create()
     {
@@ -81,7 +77,10 @@ class SaleController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['errors' => $validator->errors()], 422);
+            }
+            return redirect()->back()->withErrors($validator)->withInput();
         }
 
         try {
@@ -108,23 +107,39 @@ class SaleController extends Controller
             
             DB::commit();
             
-            return response()->json([
-                'success' => true,
-                'message' => 'Sale completed successfully!',
-                'sale_id' => $sale->id,
-                'invoice_number' => $sale->invoice_number,
-                'payment_status' => $sale->payment_status,
-                'status' => $sale->status,
-                'total' => $sale->total,
-                'paid_amount' => $sale->paid_amount,
-                'balance_due' => $sale->total - $sale->paid_amount
-            ]);
+            // For AJAX/POS requests
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Sale completed successfully!',
+                    'sale_id' => $sale->id,
+                    'invoice_number' => $sale->invoice_number,
+                    'payment_status' => $sale->payment_status,
+                    'status' => $sale->status,
+                    'total' => $sale->total,
+                    'paid_amount' => $sale->paid_amount,
+                    'balance_due' => $sale->total - $sale->paid_amount,
+                    'redirect' => route('sales.index')
+                ]);
+            }
+            
+            // For regular form submission
+            return redirect()->route('sales.index')
+                ->with('success', 'Sale completed successfully! Invoice: ' . $sale->invoice_number);
+                
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage()
-            ], 400);
+            
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $e->getMessage()
+                ], 400);
+            }
+            
+            return redirect()->back()
+                ->with('error', 'Failed to complete sale: ' . $e->getMessage())
+                ->withInput();
         }
     }
 

@@ -7,6 +7,7 @@ use App\Models\Category;
 use App\Services\ProductService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 
 class ProductController extends Controller
 {
@@ -65,13 +66,12 @@ class ProductController extends Controller
             'name' => 'required|string|max:255',
             'sku' => 'nullable|string|unique:products,sku',
             'barcode' => 'nullable|string|unique:products,barcode',
+            'description' => 'nullable|string',
             'category_id' => 'nullable|exists:categories,id',
-            'unit_price' => 'required|numeric|min:0',
-            'cost_price' => 'required|numeric|min:0',
-            'stock_quantity' => 'required|integer|min:0',
-            'minimum_stock' => 'required|integer|min:0',
+            'unit_price' => 'required|numeric|min:0', // Selling price to customers
+            'cost_price' => 'required|numeric|min:0', // Purchase price from supplier (tax included)
+            'minimum_stock' => 'nullable|integer|min:0',
             'unit' => 'required|string|max:50',
-            'tax_rate' => 'required|numeric|min:0|max:100',
             'is_active' => 'boolean',
         ]);
 
@@ -80,9 +80,21 @@ class ProductController extends Controller
         }
 
         try {
-            $product = $this->productService->createProduct($request->all());
+            // Generate SKU if not provided
+            $data = $request->all();
+            if (empty($data['sku'])) {
+                $data['sku'] = strtoupper(substr($data['name'], 0, 3)) . '-' . strtoupper(Str::random(5));
+            }
+            
+            // Stock quantity is always 0 when creating a product (comes from purchases)
+            $data['stock_quantity'] = 0;
+            $data['tax_rate'] = 0; // No tax on products
+            
+            $product = $this->productService->createProduct($data);
+            
             return redirect()->route('products.index')
-                ->with('success', 'Product created successfully!');
+                ->with('success', 'Product "' . $product->name . '" created successfully!');
+                
         } catch (\Exception $e) {
             return redirect()->back()
                 ->with('error', 'Failed to create product: ' . $e->getMessage())
@@ -107,11 +119,11 @@ class ProductController extends Controller
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'category_id' => 'nullable|exists:categories,id',
+            'description' => 'nullable|string',
             'unit_price' => 'required|numeric|min:0',
             'cost_price' => 'required|numeric|min:0',
-            'minimum_stock' => 'required|integer|min:0',
+            'minimum_stock' => 'nullable|integer|min:0',
             'unit' => 'required|string|max:50',
-            'tax_rate' => 'required|numeric|min:0|max:100',
             'is_active' => 'boolean',
         ]);
 
@@ -120,7 +132,10 @@ class ProductController extends Controller
         }
 
         try {
-            $this->productService->updateProduct($product, $request->all());
+            $updateData = $request->all();
+            $updateData['tax_rate'] = 0; // No tax on products
+            
+            $this->productService->updateProduct($product, $updateData);
             return redirect()->route('products.index')
                 ->with('success', 'Product updated successfully!');
         } catch (\Exception $e) {
@@ -133,6 +148,12 @@ class ProductController extends Controller
     public function destroy(Product $product)
     {
         try {
+            // Check if product has been sold
+            if ($product->saleItems()->exists()) {
+                return redirect()->back()
+                    ->with('error', 'Cannot delete product that has been sold.');
+            }
+            
             $this->productService->deleteProduct($product);
             return redirect()->route('products.index')
                 ->with('success', 'Product deleted successfully!');

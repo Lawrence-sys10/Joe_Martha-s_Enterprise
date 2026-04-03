@@ -114,15 +114,11 @@
                             </div>
                         </div>
                         
-                        <!-- Cart Summary -->
-                        <div class="border-t border-gray-200 pt-4 space-y-3">
+                        <!-- Cart Summary - Tax Row Removed -->
+                        <div class="border-t border-gray-200 pt-4 space-y-2">
                             <div class="flex justify-between text-gray-600">
                                 <span>Subtotal</span>
                                 <span id="subtotal" class="font-semibold">GHS 0.00</span>
-                            </div>
-                            <div class="flex justify-between text-gray-600">
-                                <span>Tax (12.5%)</span>
-                                <span id="tax" class="font-semibold">GHS 0.00</span>
                             </div>
                             <div class="flex justify-between text-xl font-bold pt-2 border-t border-gray-200">
                                 <span>Total</span>
@@ -218,7 +214,7 @@
         });
     });
     
-    // Add to cart - Now always visible
+    // Add to cart
     document.querySelectorAll('.add-to-cart-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -237,8 +233,12 @@
                     alert('Insufficient stock!');
                 }
             } else {
-                cart.push({ id, name, price, quantity: 1 });
-                showNotification(`${name} added to cart`, 'success');
+                if (stock > 0) {
+                    cart.push({ id, name, price, quantity: 1 });
+                    showNotification(`${name} added to cart`, 'success');
+                } else {
+                    alert('Product is out of stock!');
+                }
             }
             updateCart();
         });
@@ -300,11 +300,9 @@
         }
         
         const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-        const tax = subtotal * 0.125;
-        const total = subtotal + tax;
+        const total = subtotal;
         
         document.getElementById('subtotal').innerHTML = `GHS ${subtotal.toFixed(2)}`;
-        document.getElementById('tax').innerHTML = `GHS ${tax.toFixed(2)}`;
         document.getElementById('total').innerHTML = `GHS ${total.toFixed(2)}`;
         
         updateChange();
@@ -356,6 +354,11 @@
             return;
         }
         
+        // Disable button to prevent double submission
+        const checkoutBtn = document.getElementById('checkout-btn');
+        checkoutBtn.disabled = true;
+        checkoutBtn.innerHTML = 'Processing...';
+        
         const saleData = {
             payment_method: selectedPaymentMethod,
             paid_amount: amountPaid,
@@ -370,22 +373,27 @@
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json'
                 },
                 body: JSON.stringify(saleData)
             });
             
             const result = await response.json();
+            
             if (result.success) {
                 alert(`✅ Sale Completed!\nInvoice: ${result.invoice_number}\nTotal: GHS ${total.toFixed(2)}`);
-                cart = [];
-                updateCart();
-                document.getElementById('amount-paid').value = 0;
+                window.location.href = '{{ route("sales.index") }}';
             } else {
                 alert('❌ Error: ' + result.message);
+                checkoutBtn.disabled = false;
+                checkoutBtn.innerHTML = 'Complete Sale';
             }
         } catch (error) {
+            console.error('Error:', error);
             alert('❌ Error processing sale: ' + error.message);
+            checkoutBtn.disabled = false;
+            checkoutBtn.innerHTML = 'Complete Sale';
         }
     });
     

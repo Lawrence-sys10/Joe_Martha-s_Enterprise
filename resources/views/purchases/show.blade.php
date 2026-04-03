@@ -51,7 +51,8 @@
                         <p class="text-lg font-bold text-gray-800">{{ $purchase->supplier->name }}</p>
                     </div>
                     <div>
-                        <!-- Empty for spacing -->
+                        <p class="text-sm text-gray-500">Created By</p>
+                        <p class="text-lg font-bold text-gray-800">{{ $purchase->user->name ?? 'System' }}</p>
                     </div>
                 </div>
                 
@@ -81,14 +82,23 @@
                     
                     @if($balance == 0)
                     <div class="mt-4 bg-green-50 border border-green-200 rounded-lg p-3 text-center">
+                        <svg class="inline-block w-5 h-5 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
                         <span class="text-green-600 font-semibold">✓ Fully Paid</span>
                     </div>
                     @elseif($balance > 0 && $paidAmount > 0)
                     <div class="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-center">
-                        <span class="text-yellow-600 font-semibold">⚠ Partially Paid - Balance: GHS {{ number_format($balance, 2) }}</span>
+                        <svg class="inline-block w-5 h-5 text-yellow-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <span class="text-yellow-600 font-semibold">⚠ Partially Paid - Remaining Balance: GHS {{ number_format($balance, 2) }}</span>
                     </div>
                     @elseif($balance > 0)
                     <div class="mt-4 bg-red-50 border border-red-200 rounded-lg p-3 text-center">
+                        <svg class="inline-block w-5 h-5 text-red-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
                         <span class="text-red-600 font-semibold">⚠ Pending Payment - Balance: GHS {{ number_format($balance, 2) }}</span>
                     </div>
                     @endif
@@ -96,11 +106,11 @@
             </div>
         </div>
         
-        <!-- Items Table - Showing Cost Price (Purchase Price) -->
+        <!-- Items Table - Showing Cost Price Only (No Tax) -->
         <div class="bg-white rounded-2xl shadow-xl border border-amber-100 overflow-hidden">
             <div class="bg-gradient-to-r from-amber-50 to-orange-50 px-6 py-4 border-b border-amber-100">
                 <h3 class="text-lg font-semibold text-gray-800">Items Purchased</h3>
-                <p class="text-sm text-gray-500 mt-1">Cost price is what you paid the supplier</p>
+                <p class="text-sm text-gray-500 mt-1">Cost price is what you paid the supplier (tax included)</p>
             </div>
             <div class="overflow-x-auto p-6">
                 <table class="min-w-full divide-y divide-gray-200">
@@ -118,11 +128,7 @@
                             <td class="px-6 py-4 text-sm text-gray-900">{{ $item->product->name }}</td>
                             <td class="px-6 py-4 text-right text-sm text-gray-600">{{ $item->quantity }}</td>
                             <td class="px-6 py-4 text-right text-sm text-gray-600 font-mono">
-                                @php
-                                    // Use cost_price if available, otherwise use unit_price as fallback
-                                    $displayCost = isset($item->cost_price) ? $item->cost_price : ($item->unit_price ?? 0);
-                                @endphp
-                                GHS {{ number_format($displayCost, 2) }}
+                                GHS {{ number_format($item->cost_price ?? $item->unit_price, 2) }}
                             </td>
                             <td class="px-6 py-4 text-right text-sm font-semibold text-gray-800">GHS {{ number_format($item->total, 2) }}</td>
                         </tr>
@@ -130,16 +136,8 @@
                     </tbody>
                     <tfoot class="bg-gray-50">
                         <tr>
-                            <td colspan="3" class="px-6 py-4 text-right font-semibold">Subtotal:</td>
-                            <td class="px-6 py-4 text-right font-semibold">GHS {{ number_format($purchase->subtotal, 2) }}</td>
-                        </tr>
-                        <tr>
-                            <td colspan="3" class="px-6 py-4 text-right font-semibold">Tax (12.5%):</td>
-                            <td class="px-6 py-4 text-right font-semibold">GHS {{ number_format($purchase->tax, 2) }}</td>
-                        </tr>
-                        <tr class="border-t border-gray-200">
-                            <td colspan="3" class="px-6 py-4 text-right font-bold">Total to Pay Supplier:</td>
-                            <td class="px-6 py-4 text-right font-bold text-amber-600">GHS {{ number_format($purchase->total, 2) }}</td>
+                            <td colspan="3" class="px-6 py-4 text-right font-semibold">Total Purchase Cost:</td>
+                            <td class="px-6 py-4 text-right font-bold text-lg text-green-600">GHS {{ number_format($purchase->total, 2) }}</td>
                         </tr>
                     </tfoot>
                 </table>
@@ -174,6 +172,13 @@
                         </tr>
                         @endforeach
                     </tbody>
+                    <tfoot class="bg-gray-50">
+                        <tr class="font-semibold">
+                            <td colspan="2" class="px-6 py-4 text-right">Total Paid:</td>
+                            <td class="px-6 py-4 text-right text-lg font-bold text-green-600">GHS {{ number_format($purchase->payments->sum('amount'), 2) }}</td>
+                            <td colspan="2"></td>
+                        </tr>
+                    </tfoot>
                 </table>
             </div>
         </div>
@@ -219,10 +224,10 @@
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Payment Method</label>
                     <select name="payment_method" required class="w-full rounded-xl border-2 border-gray-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200">
-                        <option value="cash">Cash</option>
-                        <option value="bank_transfer">Bank Transfer</option>
-                        <option value="mobile_money">Mobile Money</option>
-                        <option value="cheque">Cheque</option>
+                        <option value="cash">💵 Cash</option>
+                        <option value="bank_transfer">🏦 Bank Transfer</option>
+                        <option value="mobile_money">📱 Mobile Money</option>
+                        <option value="cheque">📝 Cheque</option>
                     </select>
                 </div>
                 
@@ -259,35 +264,62 @@
 
 @push('scripts')
 <script>
+    const paymentModal = document.getElementById('paymentModal');
+    const amountInput = document.getElementById('paymentAmount');
+    const maxAmount = {{ $balance }};
+    
     function openPaymentModal() {
-        document.getElementById('paymentModal').classList.remove('hidden');
-        document.getElementById('paymentModal').classList.add('flex');
+        if (paymentModal) {
+            paymentModal.classList.remove('hidden');
+            paymentModal.classList.add('flex');
+            // Reset form when opening
+            if (amountInput) {
+                amountInput.value = maxAmount;
+            }
+        }
     }
     
     function closePaymentModal() {
-        document.getElementById('paymentModal').classList.add('hidden');
-        document.getElementById('paymentModal').classList.remove('flex');
+        if (paymentModal) {
+            paymentModal.classList.add('hidden');
+            paymentModal.classList.remove('flex');
+        }
     }
-    
-    const amountInput = document.getElementById('paymentAmount');
-    const maxAmount = {{ $balance }};
     
     if (amountInput) {
         amountInput.max = maxAmount;
         amountInput.addEventListener('input', function() {
             let value = parseFloat(this.value);
-            if (value > maxAmount) {
+            if (isNaN(value)) {
+                this.value = 0;
+            } else if (value > maxAmount) {
                 this.value = maxAmount;
-                alert('Amount cannot exceed the remaining balance!');
+                showToast('Amount cannot exceed the remaining balance!', 'warning');
             }
         });
     }
     
-    document.getElementById('paymentModal').addEventListener('click', function(e) {
-        if (e.target === this) {
-            closePaymentModal();
-        }
-    });
+    // Close modal when clicking outside
+    if (paymentModal) {
+        paymentModal.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closePaymentModal();
+            }
+        });
+    }
+    
+    // Show toast notification function
+    function showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.className = `fixed bottom-4 right-4 z-50 px-4 py-2 rounded-lg shadow-lg text-white ${
+            type === 'success' ? 'bg-green-500' : 
+            type === 'warning' ? 'bg-yellow-500' : 
+            type === 'error' ? 'bg-red-500' : 'bg-blue-500'
+        }`;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    }
 </script>
 @endpush
 @endsection

@@ -18,7 +18,9 @@ use App\Models\Expense;
 use App\Models\Purchase;
 use App\Models\Customer;
 use App\Models\Supplier;
+use App\Models\Payment;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class ReportController extends Controller
 {
@@ -40,17 +42,14 @@ class ReportController extends Controller
     {
         $date = $request->get('date', now()->toDateString());
         
-        // Convert to datetime with proper time boundaries
-        $startDateTime = \Carbon\Carbon::parse($date)->startOfDay();
-        $endDateTime = \Carbon\Carbon::parse($date)->endOfDay();
+        $startDateTime = Carbon::parse($date)->startOfDay();
+        $endDateTime = Carbon::parse($date)->endOfDay();
         
-        // Get sales for the selected date - INCLUDE all sales regardless of payment status
         $sales = Sale::with(['customer', 'items.product'])
             ->whereBetween('sale_date', [$startDateTime, $endDateTime])
             ->orderBy('sale_date', 'desc')
             ->get();
         
-        // Calculate summary
         $totalSales = $sales->count();
         $totalRevenue = $sales->sum('total');
         $totalTax = $sales->sum('tax');
@@ -72,17 +71,14 @@ class ReportController extends Controller
     {
         $month = $request->get('month', now()->format('Y-m'));
         
-        // Get the first and last day of the selected month
-        $startDate = \Carbon\Carbon::parse($month)->startOfMonth();
-        $endDate = \Carbon\Carbon::parse($month)->endOfMonth();
+        $startDate = Carbon::parse($month)->startOfMonth();
+        $endDate = Carbon::parse($month)->endOfMonth();
         
-        // Get sales for the selected month with eager loading
         $sales = Sale::with(['customer', 'items.product', 'payments'])
             ->whereBetween('sale_date', [$startDate, $endDate])
             ->orderBy('sale_date', 'desc')
             ->paginate(20);
         
-        // Calculate totals using a separate query for accurate summary (not affected by pagination)
         $totals = Sale::whereBetween('sale_date', [$startDate, $endDate])
             ->select(
                 DB::raw('COUNT(*) as total_sales'),
@@ -109,15 +105,12 @@ class ReportController extends Controller
         $startDate = $request->get('start_date', now()->startOfMonth()->toDateString());
         $endDate = $request->get('end_date', now()->toDateString());
         
-        // Convert to datetime with proper time boundaries
-        $startDateTime = \Carbon\Carbon::parse($startDate)->startOfDay();
-        $endDateTime = \Carbon\Carbon::parse($endDate)->endOfDay();
+        $startDateTime = Carbon::parse($startDate)->startOfDay();
+        $endDateTime = Carbon::parse($endDate)->endOfDay();
         
-        // Calculate Sales Revenue - ALL sales included
         $totalSales = Sale::whereBetween('sale_date', [$startDateTime, $endDateTime])
             ->sum('total');
         
-        // Calculate Cost of Goods Sold (from sale items)
         $totalCost = SaleItem::whereHas('sale', function($q) use ($startDateTime, $endDateTime) {
                 $q->whereBetween('sale_date', [$startDateTime, $endDateTime]);
             })
@@ -125,24 +118,16 @@ class ReportController extends Controller
             ->select(DB::raw('COALESCE(SUM(sale_items.quantity * products.cost_price), 0) as total_cost'))
             ->first()->total_cost ?? 0;
         
-        // Calculate Expenses
         $totalExpenses = Expense::whereBetween('expense_date', [$startDateTime, $endDateTime])
             ->sum('amount');
         
-        // Calculate Purchases (for reference)
         $totalPurchases = Purchase::whereBetween('purchase_date', [$startDateTime, $endDateTime])
             ->sum('total');
         
-        // Calculate Gross Profit
         $grossProfit = $totalSales - $totalCost;
-        
-        // Calculate Net Profit
         $netProfit = $grossProfit - $totalExpenses;
-        
-        // Calculate Profit Margin
         $profitMargin = $totalSales > 0 ? ($grossProfit / $totalSales) * 100 : 0;
         
-        // Get daily breakdown for chart
         $dailyData = Sale::whereBetween('sale_date', [$startDateTime, $endDateTime])
             ->select(
                 DB::raw('DATE(sale_date) as date'),
@@ -154,7 +139,6 @@ class ReportController extends Controller
             ->orderBy('date')
             ->get();
         
-        // Get top products for the period
         $topProducts = DB::table('sale_items')
             ->join('products', 'sale_items.product_id', '=', 'products.id')
             ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
@@ -192,7 +176,6 @@ class ReportController extends Controller
 
     public function stockValuation()
     {
-        // Get all active products with complete data including cost_price
         $products = Product::where('is_active', true)
             ->select(
                 'id',
@@ -209,43 +192,42 @@ class ReportController extends Controller
             ->orderBy('name', 'asc')
             ->get();
         
-        // Calculate total stock value
         $totalValue = Product::where('is_active', true)
             ->sum(DB::raw('COALESCE(stock_quantity, 0) * COALESCE(cost_price, 0)'));
         
         return view('reports.stock-valuation', compact('products', 'totalValue'));
     }
 
-    public function topProducts(Request $request)
-    {
-        $startDate = $request->get('start_date', now()->startOfMonth()->toDateString());
-        $endDate = $request->get('end_date', now()->toDateString());
-        $limit = (int) $request->get('limit', 10);
-        
-        // Convert to datetime with proper time boundaries
-        $startDateTime = \Carbon\Carbon::parse($startDate)->startOfDay();
-        $endDateTime = \Carbon\Carbon::parse($endDate)->endOfDay();
-        
-        $topProducts = DB::table('sale_items')
-            ->join('products', 'sale_items.product_id', '=', 'products.id')
-            ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
-            ->whereBetween('sales.sale_date', [$startDateTime, $endDateTime])
-            ->select(
-                'products.id',
-                'products.name',
-                'products.sku',
-                DB::raw('SUM(sale_items.quantity) as total_quantity'),
-                DB::raw('SUM(sale_items.total) as total_revenue'),
-                DB::raw('COUNT(DISTINCT sale_items.sale_id) as times_sold'),
-                DB::raw('AVG(sale_items.unit_price) as avg_price')
-            )
-            ->groupBy('products.id', 'products.name', 'products.sku')
-            ->orderBy('total_revenue', 'desc')
-            ->limit($limit)
-            ->get();
-        
-        return view('reports.top-products', compact('topProducts', 'startDate', 'endDate', 'limit'));
-    }
+   public function topProducts(Request $request)
+{
+    $startDate = $request->get('start_date', now()->startOfMonth()->toDateString());
+    $endDate = $request->get('end_date', now()->toDateString());
+    $limit = (int) $request->get('limit', 10);
+    
+    $startDateTime = Carbon::parse($startDate)->startOfDay();
+    $endDateTime = Carbon::parse($endDate)->endOfDay();
+    
+    $topProducts = DB::table('sale_items')
+        ->join('products', 'sale_items.product_id', '=', 'products.id')
+        ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
+        ->whereBetween('sales.sale_date', [$startDateTime, $endDateTime])
+        ->select(
+            'products.id',
+            'products.name',
+            'products.sku',
+            'products.cost_price', // Add this line
+            DB::raw('SUM(sale_items.quantity) as total_quantity'),
+            DB::raw('SUM(sale_items.total) as total_revenue'),
+            DB::raw('COUNT(DISTINCT sale_items.sale_id) as times_sold'),
+            DB::raw('AVG(sale_items.unit_price) as avg_price')
+        )
+        ->groupBy('products.id', 'products.name', 'products.sku', 'products.cost_price') // Add cost_price to group by
+        ->orderBy('total_revenue', 'desc')
+        ->limit($limit)
+        ->get();
+    
+    return view('reports.top-products', compact('topProducts', 'startDate', 'endDate', 'limit'));
+}
 
     public function export(Request $request)
     {
@@ -255,21 +237,39 @@ class ReportController extends Controller
         return Excel::download(new SalesExport($startDate, $endDate), 'sales-report.xlsx');
     }
     
-    public function customerDebt()
+    public function customerDebt(Request $request)
     {
-        $customers = Customer::where('current_balance', '>', 0)
-            ->orderBy('current_balance', 'desc')
-            ->paginate(20);
+        $query = Customer::where('current_balance', '>', 0);
+        
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'LIKE', "%{$search}%")
+                  ->orWhere('email', 'LIKE', "%{$search}%")
+                  ->orWhere('phone', 'LIKE', "%{$search}%");
+            });
+        }
+        
+        $customers = $query->orderBy('current_balance', 'desc')->paginate(20);
         $totalDebt = Customer::sum('current_balance');
         
         return view('reports.customer-debt', compact('customers', 'totalDebt'));
     }
     
-    public function supplierBalance()
+    public function supplierBalance(Request $request)
     {
-        $suppliers = Supplier::where('current_balance', '!=', 0)
-            ->orderBy('current_balance', 'desc')
-            ->paginate(20);
+        $query = Supplier::where('current_balance', '!=', 0);
+        
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'LIKE', "%{$search}%")
+                  ->orWhere('email', 'LIKE', "%{$search}%")
+                  ->orWhere('phone', 'LIKE', "%{$search}%");
+            });
+        }
+        
+        $suppliers = $query->orderBy('current_balance', 'desc')->paginate(20);
         $totalBalance = Supplier::sum('current_balance');
         
         return view('reports.supplier-balance', compact('suppliers', 'totalBalance'));
@@ -280,11 +280,89 @@ class ReportController extends Controller
         $startDate = $request->get('start_date', now()->startOfMonth()->toDateString());
         $endDate = $request->get('end_date', now()->toDateString());
         
-        $cashService = new CashBalanceService();
-        $cashFlow = $cashService->getCashFlowStatement($startDate, $endDate);
-        $currentBalance = $cashService->getCurrentBalance();
+        $startDateTime = Carbon::parse($startDate)->startOfDay();
+        $endDateTime = Carbon::parse($endDate)->endOfDay();
         
-        return view('reports.cash-flow', compact('cashFlow', 'currentBalance', 'startDate', 'endDate'));
+        // Cash Inflows
+        $cashSales = Sale::whereBetween('sale_date', [$startDateTime, $endDateTime])
+            ->whereIn('payment_method', ['cash', 'mobile_money', 'bank'])
+            ->where('payment_status', 'paid')
+            ->sum('total');
+        
+        $customerReceipts = Payment::whereBetween('payment_date', [$startDateTime, $endDateTime])
+            ->whereHas('sale', function($q) {
+                $q->where('payment_method', 'credit');
+            })
+            ->sum('amount');
+        
+        $totalInflow = $cashSales + $customerReceipts;
+        
+        // Cash Outflows
+        $purchases = Purchase::whereBetween('purchase_date', [$startDateTime, $endDateTime])
+            ->where('payment_status', 'paid')
+            ->sum('total');
+        
+        $supplierPayments = DB::table('purchase_payments')
+            ->whereBetween('payment_date', [$startDateTime, $endDateTime])
+            ->sum('amount');
+        
+        $expenses = Expense::whereBetween('expense_date', [$startDateTime, $endDateTime])
+            ->sum('amount');
+        
+        $totalOutflow = $purchases + $supplierPayments + $expenses;
+        
+        $netCash = $totalInflow - $totalOutflow;
+        
+        // Calculate Opening Balance
+        $previousCashSales = Sale::where('sale_date', '<', $startDateTime)
+            ->whereIn('payment_method', ['cash', 'mobile_money', 'bank'])
+            ->where('payment_status', 'paid')
+            ->sum('total');
+        
+        $previousCustomerReceipts = Payment::where('payment_date', '<', $startDateTime)
+            ->whereHas('sale', function($q) {
+                $q->where('payment_method', 'credit');
+            })
+            ->sum('amount');
+        
+        $previousTotalInflow = $previousCashSales + $previousCustomerReceipts;
+        
+        $previousPurchases = Purchase::where('purchase_date', '<', $startDateTime)
+            ->where('payment_status', 'paid')
+            ->sum('total');
+        
+        $previousSupplierPayments = DB::table('purchase_payments')
+            ->where('payment_date', '<', $startDateTime)
+            ->sum('amount');
+        
+        $previousExpenses = Expense::where('expense_date', '<', $startDateTime)
+            ->sum('amount');
+        
+        $previousTotalOutflow = $previousPurchases + $previousSupplierPayments + $previousExpenses;
+        
+        $initialBalance = 0;
+        $openingBalance = $initialBalance + ($previousTotalInflow - $previousTotalOutflow);
+        
+        $closingBalance = $openingBalance + $netCash;
+        
+        $cashFlow = [
+            'operating_activities' => [
+                'cash_sales' => $cashSales,
+                'customer_receipts' => $customerReceipts,
+                'total_inflow' => $totalInflow,
+                'purchases' => $purchases,
+                'supplier_payments' => $supplierPayments,
+                'expenses' => $expenses,
+                'total_outflow' => $totalOutflow,
+                'net_cash' => $netCash
+            ],
+            'summary' => [
+                'opening_balance' => $openingBalance,
+                'closing_balance' => $closingBalance
+            ]
+        ];
+        
+        return view('reports.cash-flow', compact('cashFlow', 'startDate', 'endDate'));
     }
     
     public function expenseReport(Request $request)
@@ -292,14 +370,23 @@ class ReportController extends Controller
         $startDate = $request->get('start_date', now()->startOfMonth()->toDateString());
         $endDate = $request->get('end_date', now()->toDateString());
         
+        $startDateTime = Carbon::parse($startDate)->startOfDay();
+        $endDateTime = Carbon::parse($endDate)->endOfDay();
+        
         $expenses = Expense::with('category')
-            ->whereBetween('expense_date', [$startDate, $endDate])
+            ->whereBetween('expense_date', [$startDateTime, $endDateTime])
             ->orderBy('expense_date', 'desc')
             ->paginate(20);
         
-        $totalExpenses = Expense::whereBetween('expense_date', [$startDate, $endDate])->sum('amount');
+        $totalExpenses = Expense::whereBetween('expense_date', [$startDateTime, $endDateTime])->sum('amount');
         
-        return view('reports.expense', compact('expenses', 'totalExpenses', 'startDate', 'endDate'));
+        $expensesByCategory = Expense::whereBetween('expense_date', [$startDateTime, $endDateTime])
+            ->select('category', DB::raw('SUM(amount) as total'))
+            ->groupBy('category')
+            ->orderBy('total', 'desc')
+            ->get();
+        
+        return view('reports.expense', compact('expenses', 'totalExpenses', 'startDate', 'endDate', 'expensesByCategory'));
     }
     
     public function exportCustomerDebt()

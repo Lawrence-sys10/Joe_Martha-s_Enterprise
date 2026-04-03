@@ -38,7 +38,7 @@
                         </div>
                         <div class="flex-1 text-center">
                             <div class="w-8 h-8 bg-amber-500 text-white rounded-full flex items-center justify-center mx-auto mb-2">2</div>
-                            <p class="text-xs text-gray-600">Pricing & Stock</p>
+                            <p class="text-xs text-gray-600">Pricing</p>
                         </div>
                         <div class="flex-1 text-center">
                             <div class="w-8 h-8 bg-amber-500 text-white rounded-full flex items-center justify-center mx-auto mb-2">3</div>
@@ -164,7 +164,7 @@
                         </div>
                     </div>
                     
-                    <!-- Pricing and Stock Section -->
+                    <!-- Pricing Section (Stock removed - comes from purchases) -->
                     <div class="section" id="section-pricing">
                         <div class="flex items-center gap-3 mb-6">
                             <div class="w-10 h-10 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-xl flex items-center justify-center">
@@ -172,12 +172,12 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                 </svg>
                             </div>
-                            <h3 class="text-xl font-bold text-gray-800">Pricing & Stock</h3>
+                            <h3 class="text-xl font-bold text-gray-800">Pricing</h3>
                         </div>
                         
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div class="group">
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Unit Price (GHS) <span class="text-red-500">*</span></label>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Unit Price (Selling Price) <span class="text-red-500">*</span></label>
                                 <div class="relative">
                                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                         <span class="text-gray-400 font-semibold">₵</span>
@@ -185,13 +185,14 @@
                                     <input type="number" name="unit_price" value="{{ old('unit_price', $product->unit_price) }}" step="0.01" required
                                            class="pl-8 w-full rounded-xl border-2 border-gray-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all duration-200">
                                 </div>
+                                <p class="text-xs text-gray-500 mt-1">The price customers will pay</p>
                                 @error('unit_price')
                                     <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                                 @enderror
                             </div>
                             
                             <div class="group">
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Cost Price (GHS) <span class="text-red-500">*</span></label>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Cost Price <span class="text-red-500">*</span></label>
                                 <div class="relative">
                                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                         <span class="text-gray-400 font-semibold">₵</span>
@@ -199,6 +200,7 @@
                                     <input type="number" name="cost_price" value="{{ old('cost_price', $product->cost_price) }}" step="0.01" required
                                            class="pl-8 w-full rounded-xl border-2 border-gray-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all duration-200">
                                 </div>
+                                <p class="text-xs text-gray-500 mt-1">What you pay to purchase from supplier (tax included)</p>
                                 @error('cost_price')
                                     <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                                 @enderror
@@ -213,9 +215,9 @@
                                         </svg>
                                     </div>
                                     <input type="text" value="{{ $product->stock_quantity }} {{ $product->unit }}s" readonly
-                                           class="pl-10 w-full rounded-lg bg-white border-2 border-gray-200 font-bold text-lg {{ $product->isLowStock() ? 'text-red-600' : 'text-green-600' }}">
+                                           class="pl-10 w-full rounded-lg bg-white border-2 border-gray-200 font-bold text-lg {{ $product->stock_quantity <= $product->minimum_stock ? 'text-red-600' : 'text-green-600' }}">
                                 </div>
-                                <p class="text-xs text-gray-500 mt-2">Stock can be adjusted from product details page</p>
+                                <p class="text-xs text-gray-500 mt-2">Stock is added through purchase orders</p>
                             </div>
                             
                             <div class="group">
@@ -231,19 +233,6 @@
                                 </div>
                                 <p class="text-xs text-gray-500 mt-1">Alert when stock falls below this level</p>
                             </div>
-                            
-                            <div class="group">
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Tax Rate (%)</label>
-                                <div class="relative">
-                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v14a2 2 0 01-2 2z"></path>
-                                        </svg>
-                                    </div>
-                                    <input type="number" name="tax_rate" value="{{ old('tax_rate', $product->tax_rate) }}" step="0.01"
-                                           class="pl-10 w-full rounded-xl border-2 border-gray-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-200 transition-all duration-200">
-                                </div>
-                            </div>
                         </div>
                         
                         <div class="mt-4 p-4 bg-blue-50 rounded-xl">
@@ -254,6 +243,17 @@
                                 <p class="text-sm text-blue-700">
                                     Profit Margin: <strong class="font-bold">{{ number_format((($product->unit_price - $product->cost_price) / $product->unit_price) * 100, 1) }}%</strong>
                                     (GHS {{ number_format($product->unit_price - $product->cost_price, 2) }} per unit)
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-4 p-4 bg-amber-50 rounded-xl">
+                            <div class="flex items-center gap-2">
+                                <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                <p class="text-sm text-amber-700">
+                                    💡 <strong>Note:</strong> Stock quantity is added through purchase orders from suppliers.
                                 </p>
                             </div>
                         </div>
@@ -343,14 +343,14 @@
         
         if (!unitPrice || parseFloat(unitPrice) <= 0) {
             e.preventDefault();
-            alert('Please enter a valid unit price');
+            alert('Please enter a valid unit price (selling price)');
             document.querySelector('input[name="unit_price"]').focus();
             return;
         }
         
         if (!costPrice || parseFloat(costPrice) <= 0) {
             e.preventDefault();
-            alert('Please enter a valid cost price');
+            alert('Please enter a valid cost price (purchase price)');
             document.querySelector('input[name="cost_price"]').focus();
             return;
         }
@@ -369,7 +369,7 @@
     // Calculate and display profit margin in real-time
     const unitPriceInput = document.querySelector('input[name="unit_price"]');
     const costPriceInput = document.querySelector('input[name="cost_price"]');
-    const profitMarginDiv = document.querySelector('.bg-blue-50 p-4');
+    const profitMarginDiv = document.querySelector('.bg-blue-50');
     
     function updateProfitMargin() {
         const unitPrice = parseFloat(unitPriceInput.value) || 0;

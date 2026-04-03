@@ -22,20 +22,20 @@
 <div class="py-12">
     <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
         <!-- Date Range Filter -->
-        <div class="filter-section">
-            <form method="GET" class="filter-grid">
+        <div class="bg-white rounded-2xl shadow-xl border border-amber-100 p-6 mb-6">
+            <form method="GET" class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                    <label class="filter-label">Start Date</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
                     <input type="date" name="start_date" value="{{ $startDate }}" 
-                           class="w-full rounded-lg border-gray-300 focus:border-amber-500 focus:ring-amber-500 filter-input">
+                           class="w-full rounded-lg border-gray-300 focus:border-amber-500 focus:ring-amber-500">
                 </div>
                 <div>
-                    <label class="filter-label">End Date</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">End Date</label>
                     <input type="date" name="end_date" value="{{ $endDate }}" 
-                           class="w-full rounded-lg border-gray-300 focus:border-amber-500 focus:ring-amber-500 filter-input">
+                           class="w-full rounded-lg border-gray-300 focus:border-amber-500 focus:ring-amber-500">
                 </div>
                 <div class="flex items-end">
-                    <button type="submit" class="filter-btn text-white font-bold py-2 px-6 rounded-lg transition-all">
+                    <button type="submit" class="w-full bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold py-2 px-6 rounded-lg transition-all">
                         Generate Report
                     </button>
                 </div>
@@ -105,7 +105,7 @@
                         <span class="text-gray-600">Customer Payments Received</span>
                         <span class="text-lg font-semibold text-gray-800">GHS {{ number_format($cashFlow['operating_activities']['customer_receipts'] ?? 0, 2) }}</span>
                     </div>
-                    <div class="flex justify-between items-center pb-3 border-b border-gray-200 bg-green-50">
+                    <div class="flex justify-between items-center pb-3 border-b border-gray-200 bg-green-50 p-3 rounded-lg">
                         <span class="text-gray-700 font-semibold">Total Cash Inflow</span>
                         <span class="text-lg font-bold text-green-600">GHS {{ number_format($cashFlow['operating_activities']['total_inflow'] ?? 0, 2) }}</span>
                     </div>
@@ -123,7 +123,7 @@
                             <span class="text-gray-600">Operating Expenses</span>
                             <span class="text-lg font-semibold text-gray-800">GHS {{ number_format($cashFlow['operating_activities']['expenses'] ?? 0, 2) }}</span>
                         </div>
-                        <div class="flex justify-between items-center pt-2 bg-red-50">
+                        <div class="flex justify-between items-center pt-2 bg-red-50 p-3 rounded-lg mt-2">
                             <span class="text-gray-700 font-semibold">Total Cash Outflow</span>
                             <span class="text-lg font-bold text-red-600">GHS {{ number_format($cashFlow['operating_activities']['total_outflow'] ?? 0, 2) }}</span>
                         </div>
@@ -153,4 +153,3 @@
     </div>
 </div>
 @endsection
-

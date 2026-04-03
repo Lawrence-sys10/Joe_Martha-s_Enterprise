@@ -84,6 +84,16 @@
             margin-top: 15px;
             font-weight: bold;
         }
+        @media print {
+            body {
+                padding: 0;
+                margin: 0;
+            }
+            .receipt {
+                border: none;
+                padding: 10px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -100,6 +110,9 @@
             <p><strong>Date:</strong> {{ $sale->sale_date->format('Y-m-d H:i:s') }}</p>
             <p><strong>Cashier:</strong> {{ $sale->user->name ?? 'System' }}</p>
             <p><strong>Customer:</strong> {{ $sale->customer->name ?? 'Walk-in Customer' }}</p>
+            @if($sale->customer && $sale->customer->phone)
+            <p><strong>Phone:</strong> {{ $sale->customer->phone }}</p>
+            @endif
         </div>
         
         <table class="items">
@@ -125,7 +138,6 @@
         
         <div class="total">
             <p>Subtotal: GHS {{ number_format($sale->subtotal, 2) }}</p>
-            <p>Tax (12.5%): GHS {{ number_format($sale->tax, 2) }}</p>
             @if($sale->discount > 0)
             <p>Discount: -GHS {{ number_format($sale->discount, 2) }}</p>
             @endif
@@ -136,8 +148,12 @@
         
         <div class="footer">
             <p>Payment Method: {{ ucfirst(str_replace('_', ' ', $sale->payment_method)) }}</p>
+            @if($sale->payment_status == 'partial')
+            <p style="color: #f59e0b;">Remaining Balance: GHS {{ number_format($sale->total - $sale->paid_amount, 2) }}</p>
+            @elseif($sale->payment_status == 'pending')
+            <p style="color: #ef4444;">Pending Payment: GHS {{ number_format($sale->total - $sale->paid_amount, 2) }}</p>
+            @endif
             <p>Thank you for your business!</p>
-            <!--<p>*** This is a computer-generated receipt ***</p>-->
         </div>
         
         <div class="thankyou">
