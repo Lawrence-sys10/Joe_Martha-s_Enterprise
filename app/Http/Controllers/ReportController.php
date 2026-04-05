@@ -40,7 +40,15 @@ class ReportController extends Controller
 
     public function dailySales(Request $request)
     {
-        $date = $request->get('date', now()->toDateString());
+        $userRoles = auth()->user()->roles->pluck('name')->toArray();
+        $isAttendant = in_array('Attendant', $userRoles) || in_array('attendant', $userRoles);
+        
+        // For attendants, force today's date, ignore any date filters
+        if ($isAttendant) {
+            $date = now()->toDateString();
+        } else {
+            $date = $request->get('date', now()->toDateString());
+        }
         
         $startDateTime = Carbon::parse($date)->startOfDay();
         $endDateTime = Carbon::parse($date)->endOfDay();
@@ -64,11 +72,19 @@ class ReportController extends Controller
             'average_sale' => $averageSale
         ]]);
         
-        return view('reports.daily-sales', compact('sales', 'date', 'summary'));
+        return view('reports.daily-sales', compact('sales', 'date', 'summary', 'isAttendant'));
     }
 
     public function monthlySales(Request $request)
     {
+        $userRoles = auth()->user()->roles->pluck('name')->toArray();
+        $isAttendant = in_array('Attendant', $userRoles) || in_array('attendant', $userRoles);
+        
+        // Attendants cannot access monthly sales
+        if ($isAttendant) {
+            abort(403, 'You do not have permission to access monthly sales reports.');
+        }
+        
         $month = $request->get('month', now()->format('Y-m'));
         
         $startDate = Carbon::parse($month)->startOfMonth();
@@ -102,6 +118,14 @@ class ReportController extends Controller
 
     public function profitLoss(Request $request)
     {
+        $userRoles = auth()->user()->roles->pluck('name')->toArray();
+        $isAttendant = in_array('Attendant', $userRoles) || in_array('attendant', $userRoles);
+        
+        // Attendants cannot access profit & loss
+        if ($isAttendant) {
+            abort(403, 'You do not have permission to access profit & loss reports.');
+        }
+        
         $startDate = $request->get('start_date', now()->startOfMonth()->toDateString());
         $endDate = $request->get('end_date', now()->toDateString());
         
@@ -174,8 +198,16 @@ class ReportController extends Controller
         return view('reports.profit-loss', compact('profitLoss', 'startDate', 'endDate'));
     }
 
-    public function stockValuation()
+    public function stockValuation(Request $request)
     {
+        $userRoles = auth()->user()->roles->pluck('name')->toArray();
+        $isAttendant = in_array('Attendant', $userRoles) || in_array('attendant', $userRoles);
+        
+        // Attendants cannot access stock valuation
+        if ($isAttendant) {
+            abort(403, 'You do not have permission to access stock valuation reports.');
+        }
+        
         $products = Product::where('is_active', true)
             ->select(
                 'id',
@@ -198,39 +230,57 @@ class ReportController extends Controller
         return view('reports.stock-valuation', compact('products', 'totalValue'));
     }
 
-   public function topProducts(Request $request)
-{
-    $startDate = $request->get('start_date', now()->startOfMonth()->toDateString());
-    $endDate = $request->get('end_date', now()->toDateString());
-    $limit = (int) $request->get('limit', 10);
-    
-    $startDateTime = Carbon::parse($startDate)->startOfDay();
-    $endDateTime = Carbon::parse($endDate)->endOfDay();
-    
-    $topProducts = DB::table('sale_items')
-        ->join('products', 'sale_items.product_id', '=', 'products.id')
-        ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
-        ->whereBetween('sales.sale_date', [$startDateTime, $endDateTime])
-        ->select(
-            'products.id',
-            'products.name',
-            'products.sku',
-            'products.cost_price', // Add this line
-            DB::raw('SUM(sale_items.quantity) as total_quantity'),
-            DB::raw('SUM(sale_items.total) as total_revenue'),
-            DB::raw('COUNT(DISTINCT sale_items.sale_id) as times_sold'),
-            DB::raw('AVG(sale_items.unit_price) as avg_price')
-        )
-        ->groupBy('products.id', 'products.name', 'products.sku', 'products.cost_price') // Add cost_price to group by
-        ->orderBy('total_revenue', 'desc')
-        ->limit($limit)
-        ->get();
-    
-    return view('reports.top-products', compact('topProducts', 'startDate', 'endDate', 'limit'));
-}
+    public function topProducts(Request $request)
+    {
+        $userRoles = auth()->user()->roles->pluck('name')->toArray();
+        $isAttendant = in_array('Attendant', $userRoles) || in_array('attendant', $userRoles);
+        
+        // For attendants, force current month date range, ignore filters
+        if ($isAttendant) {
+            $startDate = now()->startOfMonth()->toDateString();
+            $endDate = now()->toDateString();
+        } else {
+            $startDate = $request->get('start_date', now()->startOfMonth()->toDateString());
+            $endDate = $request->get('end_date', now()->toDateString());
+        }
+        
+        $limit = (int) $request->get('limit', 10);
+        
+        $startDateTime = Carbon::parse($startDate)->startOfDay();
+        $endDateTime = Carbon::parse($endDate)->endOfDay();
+        
+        $topProducts = DB::table('sale_items')
+            ->join('products', 'sale_items.product_id', '=', 'products.id')
+            ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
+            ->whereBetween('sales.sale_date', [$startDateTime, $endDateTime])
+            ->select(
+                'products.id',
+                'products.name',
+                'products.sku',
+                'products.cost_price',
+                DB::raw('SUM(sale_items.quantity) as total_quantity'),
+                DB::raw('SUM(sale_items.total) as total_revenue'),
+                DB::raw('COUNT(DISTINCT sale_items.sale_id) as times_sold'),
+                DB::raw('AVG(sale_items.unit_price) as avg_price')
+            )
+            ->groupBy('products.id', 'products.name', 'products.sku', 'products.cost_price')
+            ->orderBy('total_revenue', 'desc')
+            ->limit($limit)
+            ->get();
+        
+        return view('reports.top-products', compact('topProducts', 'startDate', 'endDate', 'limit', 'isAttendant'));
+    }
 
     public function export(Request $request)
     {
+        $userRoles = auth()->user()->roles->pluck('name')->toArray();
+        $isAttendant = in_array('Attendant', $userRoles) || in_array('attendant', $userRoles);
+        
+        // Attendants cannot export reports
+        if ($isAttendant) {
+            abort(403, 'You do not have permission to export reports.');
+        }
+        
         $startDate = $request->get('start_date', now()->startOfMonth()->toDateString());
         $endDate = $request->get('end_date', now()->toDateString());
         
@@ -239,6 +289,9 @@ class ReportController extends Controller
     
     public function customerDebt(Request $request)
     {
+        $userRoles = auth()->user()->roles->pluck('name')->toArray();
+        $isAttendant = in_array('Attendant', $userRoles) || in_array('attendant', $userRoles);
+        
         $query = Customer::where('current_balance', '>', 0);
         
         if ($request->filled('search')) {
@@ -253,11 +306,19 @@ class ReportController extends Controller
         $customers = $query->orderBy('current_balance', 'desc')->paginate(20);
         $totalDebt = Customer::sum('current_balance');
         
-        return view('reports.customer-debt', compact('customers', 'totalDebt'));
+        return view('reports.customer-debt', compact('customers', 'totalDebt', 'isAttendant'));
     }
     
     public function supplierBalance(Request $request)
     {
+        $userRoles = auth()->user()->roles->pluck('name')->toArray();
+        $isAttendant = in_array('Attendant', $userRoles) || in_array('attendant', $userRoles);
+        
+        // Attendants cannot access supplier balance
+        if ($isAttendant) {
+            abort(403, 'You do not have permission to access supplier balance reports.');
+        }
+        
         $query = Supplier::where('current_balance', '!=', 0);
         
         if ($request->filled('search')) {
@@ -277,6 +338,14 @@ class ReportController extends Controller
     
     public function cashFlow(Request $request)
     {
+        $userRoles = auth()->user()->roles->pluck('name')->toArray();
+        $isAttendant = in_array('Attendant', $userRoles) || in_array('attendant', $userRoles);
+        
+        // Attendants cannot access cash flow
+        if ($isAttendant) {
+            abort(403, 'You do not have permission to access cash flow reports.');
+        }
+        
         $startDate = $request->get('start_date', now()->startOfMonth()->toDateString());
         $endDate = $request->get('end_date', now()->toDateString());
         
@@ -367,6 +436,14 @@ class ReportController extends Controller
     
     public function expenseReport(Request $request)
     {
+        $userRoles = auth()->user()->roles->pluck('name')->toArray();
+        $isAttendant = in_array('Attendant', $userRoles) || in_array('attendant', $userRoles);
+        
+        // Attendants cannot access expense reports
+        if ($isAttendant) {
+            abort(403, 'You do not have permission to access expense reports.');
+        }
+        
         $startDate = $request->get('start_date', now()->startOfMonth()->toDateString());
         $endDate = $request->get('end_date', now()->toDateString());
         
@@ -391,11 +468,27 @@ class ReportController extends Controller
     
     public function exportCustomerDebt()
     {
+        $userRoles = auth()->user()->roles->pluck('name')->toArray();
+        $isAttendant = in_array('Attendant', $userRoles) || in_array('attendant', $userRoles);
+        
+        // Attendants cannot export customer debt
+        if ($isAttendant) {
+            abort(403, 'You do not have permission to export customer debt reports.');
+        }
+        
         return Excel::download(new CustomerDebtExport(), 'customer-debt.xlsx');
     }
     
     public function exportSupplierBalance()
     {
+        $userRoles = auth()->user()->roles->pluck('name')->toArray();
+        $isAttendant = in_array('Attendant', $userRoles) || in_array('attendant', $userRoles);
+        
+        // Attendants cannot export supplier balance
+        if ($isAttendant) {
+            abort(403, 'You do not have permission to export supplier balance reports.');
+        }
+        
         return Excel::download(new SupplierBalanceExport(), 'supplier-balance.xlsx');
     }
 }

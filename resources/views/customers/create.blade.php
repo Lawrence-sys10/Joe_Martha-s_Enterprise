@@ -29,7 +29,13 @@
                 @csrf
                 
                 <div class="p-8">
-                    <!-- Progress Indicator -->
+                    <!-- Progress Indicator - Adjusted based on role -->
+                    @php
+                        $userRoles = Auth::user()->roles->pluck('name')->toArray();
+                        $isAttendant = in_array('Attendant', $userRoles) || in_array('attendant', $userRoles);
+                        $totalSteps = $isAttendant ? 2 : 3;
+                    @endphp
+                    
                     <div class="flex justify-between mb-8">
                         <div class="flex-1 text-center">
                             <div class="w-10 h-10 bg-amber-500 text-white rounded-full flex items-center justify-center mx-auto mb-2 shadow-md">
@@ -38,17 +44,19 @@
                             <p class="text-xs font-medium text-gray-600">Basic Info</p>
                         </div>
                         <div class="flex-1 text-center">
-                            <div class="w-10 h-10 bg-gray-200 text-gray-500 rounded-full flex items-center justify-center mx-auto mb-2">
+                            <div class="w-10 h-10 {{ $isAttendant ? 'bg-amber-500 text-white' : 'bg-gray-200 text-gray-500' }} rounded-full flex items-center justify-center mx-auto mb-2">
                                 <span class="text-sm font-bold">2</span>
                             </div>
-                            <p class="text-xs font-medium text-gray-500">Financial</p>
+                            <p class="text-xs font-medium {{ $isAttendant ? 'text-gray-600' : 'text-gray-500' }}">Additional</p>
                         </div>
+                        @if(!$isAttendant)
                         <div class="flex-1 text-center">
                             <div class="w-10 h-10 bg-gray-200 text-gray-500 rounded-full flex items-center justify-center mx-auto mb-2">
                                 <span class="text-sm font-bold">3</span>
                             </div>
-                            <p class="text-xs font-medium text-gray-500">Additional</p>
+                            <p class="text-xs font-medium text-gray-500">Financial</p>
                         </div>
+                        @endif
                     </div>
                     
                     <!-- Basic Information Section -->
@@ -138,8 +146,9 @@
                         </div>
                     </div>
                     
-                    <!-- Financial Information Section -->
-                    <div class="mb-8">
+                    <!-- Financial Information Section - Only visible to Admins/Managers -->
+                    @if(!$isAttendant)
+                    <div class="mb-8" id="financialSection">
                         <div class="flex items-center gap-3 mb-6 pb-2 border-b border-gray-200">
                             <div class="w-10 h-10 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-xl flex items-center justify-center shadow-md">
                                 <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -147,6 +156,7 @@
                                 </svg>
                             </div>
                             <h3 class="text-lg font-semibold text-gray-800">Financial Information</h3>
+                            <span class="ml-auto text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded-full">Admin Only</span>
                         </div>
                         
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -173,9 +183,14 @@
                             </div>
                         </div>
                     </div>
+                    @else
+                    <!-- Hidden fields for attendants (set default values) -->
+                    <input type="hidden" name="opening_balance" value="0">
+                    <input type="hidden" name="credit_limit" value="">
+                    @endif
                     
                     <!-- Additional Information Section -->
-                    <div class="mb-6">
+                    <div class="mb-6" id="additionalSection">
                         <div class="flex items-center gap-3 mb-6 pb-2 border-b border-gray-200">
                             <div class="w-10 h-10 bg-gradient-to-br from-purple-400 to-pink-500 rounded-xl flex items-center justify-center shadow-md">
                                 <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -215,6 +230,9 @@
                     <div class="flex justify-between items-center">
                         <div class="text-sm text-gray-500">
                             <span class="text-red-500">*</span> Required fields
+                            @if($isAttendant)
+                            <span class="ml-3 text-xs text-amber-600">Financial settings managed by admin</span>
+                            @endif
                         </div>
                         <div class="flex gap-3">
                             <a href="{{ route('customers.index') }}" class="px-6 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-lg transition-all duration-200">

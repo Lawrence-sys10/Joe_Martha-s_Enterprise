@@ -21,39 +21,70 @@ class SaleController extends Controller
 
     public function index(Request $request)
     {
-        $filters = [
-            'start_date' => $request->get('start_date'),
-            'end_date' => $request->get('end_date'),
-            'customer_id' => $request->get('customer_id'),
-            'status' => $request->get('status'),
-            'payment_method' => $request->get('payment_method'),
-            'payment_status' => $request->get('payment_status'),
-        ];
+        $userRoles = auth()->user()->roles->pluck('name')->toArray();
+        $isAttendant = in_array('Attendant', $userRoles);
         
-        $sales = $this->salesService->getAllSales(20, $filters);
+        $query = Sale::with(['customer', 'items', 'payments'])
+            ->where('status', 'completed');
         
-        // Calculate statistics - ALL sales included (no separation)
-        $totalSales = Sale::where('status', 'completed')->sum('total');
-        $todaySales = Sale::whereDate('created_at', today())->where('status', 'completed')->sum('total');
-        $todayCount = Sale::whereDate('created_at', today())->where('status', 'completed')->count();
-        $totalTransactions = Sale::count();
-        $avgSaleValue = $totalTransactions > 0 ? $totalSales / $totalTransactions : 0;
+        if ($isAttendant) {
+            // Attendants only see today's sales
+            $query->whereDate('created_at', today());
+        } else {
+            // Apply filters only for non-attendants
+            if ($request->filled('start_date')) {
+                $query->whereDate('created_at', '>=', $request->start_date);
+            }
+            if ($request->filled('end_date')) {
+                $query->whereDate('created_at', '<=', $request->end_date);
+            }
+            if ($request->filled('payment_method')) {
+                $query->where('payment_method', $request->payment_method);
+            }
+            if ($request->filled('payment_status')) {
+                $query->where('payment_status', $request->payment_status);
+            }
+        }
         
-        // Calculate credit sales statistics
-        $pendingCredit = Sale::where('payment_method', 'credit')
-            ->where('payment_status', 'pending')
-            ->sum('total');
+        $sales = $query->latest()->paginate(20);
         
-        $partialCredit = \App\Models\Payment::whereHas('sale', function($query) {
-            $query->where('payment_method', 'credit')
-                ->where('payment_status', 'partial');
-        })->sum('amount');
+        // Calculate statistics
+        if ($isAttendant) {
+            // Attendants only see today's stats
+            $totalSales = Sale::whereDate('created_at', today())->where('status', 'completed')->sum('total');
+            $todaySales = Sale::whereDate('created_at', today())->where('status', 'completed')->sum('total');
+            $todayCount = Sale::whereDate('created_at', today())->where('status', 'completed')->count();
+            $totalTransactions = Sale::whereDate('created_at', today())->where('status', 'completed')->count();
+            $avgSaleValue = $totalTransactions > 0 ? $totalSales / $totalTransactions : 0;
+            
+            // Attendants don't see credit stats
+            $pendingCredit = 0;
+            $partialCredit = 0;
+            $paidCredit = 0;
+        } else {
+            // Full stats for admins/managers
+            $totalSales = Sale::where('status', 'completed')->sum('total');
+            $todaySales = Sale::whereDate('created_at', today())->where('status', 'completed')->sum('total');
+            $todayCount = Sale::whereDate('created_at', today())->where('status', 'completed')->count();
+            $totalTransactions = Sale::count();
+            $avgSaleValue = $totalTransactions > 0 ? $totalSales / $totalTransactions : 0;
+            
+            // Calculate credit sales statistics
+            $pendingCredit = Sale::where('payment_method', 'credit')
+                ->where('payment_status', 'pending')
+                ->sum('total');
+            
+            $partialCredit = \App\Models\Payment::whereHas('sale', function($query) {
+                $query->where('payment_method', 'credit')
+                    ->where('payment_status', 'partial');
+            })->sum('amount');
+            
+            $paidCredit = Sale::where('payment_method', 'credit')
+                ->where('payment_status', 'paid')
+                ->sum('total');
+        }
         
-        $paidCredit = Sale::where('payment_method', 'credit')
-            ->where('payment_status', 'paid')
-            ->sum('total');
-        
-        return view('sales.index', compact('sales', 'totalSales', 'todaySales', 'todayCount', 'totalTransactions', 'avgSaleValue', 'pendingCredit', 'partialCredit', 'paidCredit'));
+        return view('sales.index', compact('sales', 'totalSales', 'todaySales', 'todayCount', 'totalTransactions', 'avgSaleValue', 'pendingCredit', 'partialCredit', 'paidCredit', 'isAttendant'));
     }
 
     public function create()
@@ -145,6 +176,14 @@ class SaleController extends Controller
 
     public function show(Sale $sale)
     {
+        $userRoles = auth()->user()->roles->pluck('name')->toArray();
+        $isAttendant = in_array('Attendant', $userRoles);
+        
+        // Attendants can only view today's sales
+        if ($isAttendant && $sale->created_at->toDateString() != today()->toDateString()) {
+            abort(403, 'You can only view today\'s sales.');
+        }
+        
         $sale->load('customer', 'user', 'items.product', 'payments');
         
         // Calculate total paid from payments table
@@ -169,11 +208,19 @@ class SaleController extends Controller
         }
         $sale->save();
         
-        return view('sales.show', compact('sale', 'remainingBalance', 'totalPaidFromPayments'));
+        return view('sales.show', compact('sale', 'remainingBalance', 'totalPaidFromPayments', 'isAttendant'));
     }
 
     public function printReceipt(Sale $sale)
     {
+        $userRoles = auth()->user()->roles->pluck('name')->toArray();
+        $isAttendant = in_array('Attendant', $userRoles);
+        
+        // Attendants can only print receipts for today's sales
+        if ($isAttendant && $sale->created_at->toDateString() != today()->toDateString()) {
+            abort(403, 'You can only print receipts for today\'s sales.');
+        }
+        
         // Only allow printing if payment is fully paid
         $totalPaid = $sale->payments()->sum('amount');
         if ($totalPaid < $sale->total) {
@@ -185,6 +232,14 @@ class SaleController extends Controller
     
     public function void(Request $request, Sale $sale)
     {
+        $userRoles = auth()->user()->roles->pluck('name')->toArray();
+        $isAttendant = in_array('Attendant', $userRoles);
+        
+        // Attendants cannot void sales
+        if ($isAttendant) {
+            abort(403, 'You do not have permission to void sales.');
+        }
+        
         $validator = Validator::make($request->all(), [
             'reason' => 'required|string|min:3',
         ]);
@@ -237,6 +292,17 @@ class SaleController extends Controller
     
     public function updatePaymentStatus(Request $request, Sale $sale)
     {
+        $userRoles = auth()->user()->roles->pluck('name')->toArray();
+        $isAttendant = in_array('Attendant', $userRoles);
+        
+        // Attendants cannot update payment status
+        if ($isAttendant) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You do not have permission to update payment status.'
+            ], 403);
+        }
+        
         $request->validate([
             'paid_amount' => 'required|numeric|min:0',
         ]);

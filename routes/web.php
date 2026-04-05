@@ -12,13 +12,15 @@ use App\Http\Controllers\CCTVController;
 use App\Http\Controllers\SupplierPaymentController;
 use App\Http\Controllers\PurchaseController;
 use App\Http\Controllers\PurchasePaymentController;
+use App\Http\Controllers\UserController;
+use App\Http\Controllers\Auth\PasswordController;
 
 // Public routes
 Route::get('/', function () {
     return redirect()->route('login');
 });
 
-// Authentication routes (simple version)
+// Authentication routes with active user check
 Route::get('/login', function () {
     return view('auth.login');
 })->name('login');
@@ -27,6 +29,24 @@ Route::post('/login', function () {
     $credentials = request()->only('email', 'password');
     
     if (auth()->attempt($credentials)) {
+        $user = auth()->user();
+        
+        // Check if user is active
+        if (!$user->is_active) {
+            auth()->logout();
+            return back()->withErrors([
+                'email' => 'Your account has been deactivated. Please contact the administrator.',
+            ]);
+        }
+        
+        // Check if user has any roles
+        if ($user->roles->count() === 0) {
+            auth()->logout();
+            return back()->withErrors([
+                'email' => 'Your account has no assigned roles. Please contact the administrator.',
+            ]);
+        }
+        
         request()->session()->regenerate();
         return redirect()->intended('/dashboard');
     }
@@ -43,7 +63,7 @@ Route::post('/logout', function () {
     return redirect('/');
 })->name('logout');
 
-// Authenticated routes
+// Authenticated routes (without user.active middleware - login check is sufficient)
 Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::resource('products', ProductController::class);
@@ -69,7 +89,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('reports/customer-debt/export', [ReportController::class, 'exportCustomerDebt'])->name('reports.customer-debt.export');
     Route::get('reports/supplier-balance/export', [ReportController::class, 'exportSupplierBalance'])->name('reports.supplier-balance.export');
     
-    // Supplier Payments Report Routes - FIXED
+    // Supplier Payments Report Routes
     Route::prefix('reports')->name('reports.')->group(function () {
         Route::get('/supplier-payments', [SupplierPaymentController::class, 'index'])->name('supplier-payments');
         Route::get('/supplier-payments/create/{supplierId?}/{purchaseId?}', [SupplierPaymentController::class, 'create'])->name('supplier-payments.create');
@@ -103,6 +123,29 @@ Route::middleware(['auth'])->group(function () {
     // Customer Routes
     Route::post('/customers/{customer}/add-credit', [App\Http\Controllers\CustomerController::class, 'addCredit'])->name('customers.add-credit');
     Route::post('/customers/{customer}/pay', [App\Http\Controllers\CustomerController::class, 'makePayment'])->name('customers.pay');
+    
+    // ==========================================
+    // USER MANAGEMENT & PASSWORD ROUTES
+    // ==========================================
+    
+    // User Management Routes (Admin only)
+    Route::resource('users', UserController::class)->middleware('can:manage users');
+    
+    // User Activation/Deactivation Routes
+    Route::put('/users/{user}/deactivate', [UserController::class, 'deactivate'])->name('users.deactivate');
+    Route::put('/users/{user}/activate', [UserController::class, 'activate'])->name('users.activate');
+    
+    // Password Change Routes (for logged in user)
+    Route::get('/password/change', [PasswordController::class, 'showChangeForm'])->name('password.change');
+    Route::post('/password/change', [PasswordController::class, 'update'])->name('password.update');
+    
+    // Password Reset Routes for Admin (to reset other users' passwords)
+    Route::get('/password/reset-users', [PasswordController::class, 'showResetUsers'])
+        ->name('password.reset-users')
+        ->middleware('can:reset passwords');
+    Route::post('/password/reset-user/{user}', [PasswordController::class, 'resetUserPassword'])
+        ->name('password.reset-user')
+        ->middleware('can:reset passwords');
 });
 
 // API Routes for AJAX

@@ -11,9 +11,16 @@
                     <p class="text-amber-100 text-sm mt-1">View sales performance by day</p>
                 </div>
                 <div class="flex gap-3">
+                    @php
+                        $userRoles = Auth::user()->roles->pluck('name')->toArray();
+                        $isAttendant = in_array('Attendant', $userRoles) || in_array('attendant', $userRoles);
+                    @endphp
+                    
+                    @if(!$isAttendant)
                     <a href="{{ route('reports.monthly') }}" class="bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white font-bold py-2 px-4 rounded-lg transition-all">
                         Monthly Report
                     </a>
+                    @endif
                     <a href="{{ route('dashboard') }}" class="bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white font-bold py-2 px-4 rounded-lg transition-all">
                         Back to Dashboard
                     </a>
@@ -26,7 +33,13 @@
 @section('content')
 <div class="py-12">
     <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-        <!-- Date Filter -->
+        @php
+            $userRoles = Auth::user()->roles->pluck('name')->toArray();
+            $isAttendant = in_array('Attendant', $userRoles) || in_array('attendant', $userRoles);
+        @endphp
+        
+        <!-- Date Filter - Hidden for Attendants -->
+        @if(!$isAttendant)
         <div class="bg-white rounded-2xl shadow-xl border border-amber-100 p-6 mb-6">
             <form method="GET" class="flex gap-4 items-end">
                 <div class="flex-1">
@@ -41,6 +54,20 @@
                 </div>
             </form>
         </div>
+        @else
+        <!-- Info message for attendants -->
+        <div class="bg-blue-50 border-l-4 border-blue-500 rounded-lg p-4 mb-6">
+            <div class="flex items-center gap-3">
+                <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <div>
+                    <p class="text-sm font-medium text-blue-800">Today's Sales Report</p>
+                    <p class="text-xs text-blue-600">Showing sales for {{ \Carbon\Carbon::parse($date)->format('F j, Y') }}. Date filtering is not available for your role.</p>
+                </div>
+            </div>
+        </div>
+        @endif
         
         <!-- Report Summary - Matching sales index cards -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
@@ -189,6 +216,9 @@
                                 </svg>
                                 <p class="text-gray-500">No sales found for {{ \Carbon\Carbon::parse($date)->format('F j, Y') }}</p>
                                 <p class="text-sm text-gray-400 mt-1">Try selecting a different date</p>
+                                @if($isAttendant)
+                                <p class="text-xs text-amber-600 mt-2">Note: Attendants can only view today's sales. Please contact an administrator to view other dates.</p>
+                                @endif
                                </td>
                            </tr>
                         @endforelse
@@ -196,6 +226,13 @@
                 </table>
             </div>
         </div>
+        
+        <!-- Pagination (only for non-attendants if needed) -->
+        @if(isset($sales) && method_exists($sales, 'links') && !$isAttendant)
+        <div class="mt-4">
+            {{ $sales->links() }}
+        </div>
+        @endif
     </div>
 </div>
 @endsection

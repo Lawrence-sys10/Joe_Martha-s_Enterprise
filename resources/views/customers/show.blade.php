@@ -14,9 +14,16 @@
                     <a href="{{ route('customers.index') }}" class="bg-white hover:bg-amber-50 text-amber-600 font-bold py-2 px-4 rounded-lg shadow-md transition-all">
                         Back
                     </a>
+                    @php
+                        $userRoles = Auth::user()->roles->pluck('name')->toArray();
+                        $isAttendant = in_array('Attendant', $userRoles) || in_array('attendant', $userRoles);
+                    @endphp
+                    
+                    @if(!$isAttendant)
                     <a href="{{ route('customers.edit', $customer) }}" class="bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-all">
                         Edit Customer
                     </a>
+                    @endif
                 </div>
             </div>
         </div>
@@ -101,12 +108,14 @@
                                     GHS {{ number_format($customer->current_balance, 2) }}
                                 </span>
                             </div>
+                            @if(!$isAttendant)
                             <div class="flex justify-between">
                                 <span class="text-sm text-gray-600">Credit Limit</span>
                                 <span class="text-lg font-bold text-gray-700">
                                     GHS {{ number_format($customer->credit_limit ?? 0, 2) }}
                                 </span>
                             </div>
+                            @endif
                         </div>
                     </div>
                 </div>

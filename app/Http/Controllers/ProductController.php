@@ -8,6 +8,7 @@ use App\Services\ProductService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Storage;
 
 class ProductController extends Controller
 {
@@ -48,7 +49,7 @@ class ProductController extends Controller
                   ->where('stock_quantity', '>', 0);
         }
         
-        $products = $query->orderBy('name')->paginate(20);
+        $products = $query->orderBy('name')->paginate(12);
         $categories = Category::where('is_active', true)->get();
         
         return view('products.index', compact('products', 'categories'));
@@ -68,11 +69,12 @@ class ProductController extends Controller
             'barcode' => 'nullable|string|unique:products,barcode',
             'description' => 'nullable|string',
             'category_id' => 'nullable|exists:categories,id',
-            'unit_price' => 'required|numeric|min:0', // Selling price to customers
-            'cost_price' => 'required|numeric|min:0', // Purchase price from supplier (tax included)
+            'unit_price' => 'required|numeric|min:0',
+            'cost_price' => 'required|numeric|min:0',
             'minimum_stock' => 'nullable|integer|min:0',
             'unit' => 'required|string|max:50',
             'is_active' => 'boolean',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048' // Image validation
         ]);
 
         if ($validator->fails()) {
@@ -88,7 +90,15 @@ class ProductController extends Controller
             
             // Stock quantity is always 0 when creating a product (comes from purchases)
             $data['stock_quantity'] = 0;
-            $data['tax_rate'] = 0; // No tax on products
+            $data['tax_rate'] = 0;
+            
+            // Handle image upload
+            if ($request->hasFile('image')) {
+                $image = $request->file('image');
+                $imageName = time() . '_' . preg_replace('/[^a-zA-Z0-9.]/', '_', $image->getClientOriginalName());
+                $imagePath = $image->storeAs('products', $imageName, 'public');
+                $data['image'] = $imagePath;
+            }
             
             $product = $this->productService->createProduct($data);
             
@@ -125,6 +135,7 @@ class ProductController extends Controller
             'minimum_stock' => 'nullable|integer|min:0',
             'unit' => 'required|string|max:50',
             'is_active' => 'boolean',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048'
         ]);
 
         if ($validator->fails()) {
@@ -132,8 +143,29 @@ class ProductController extends Controller
         }
 
         try {
-            $updateData = $request->all();
-            $updateData['tax_rate'] = 0; // No tax on products
+            $updateData = $request->except('image');
+            $updateData['tax_rate'] = 0;
+            
+            // Handle image upload
+            if ($request->hasFile('image')) {
+                // Delete old image if exists
+                if ($product->image && Storage::disk('public')->exists($product->image)) {
+                    Storage::disk('public')->delete($product->image);
+                }
+                
+                $image = $request->file('image');
+                $imageName = time() . '_' . preg_replace('/[^a-zA-Z0-9.]/', '_', $image->getClientOriginalName());
+                $imagePath = $image->storeAs('products', $imageName, 'public');
+                $updateData['image'] = $imagePath;
+            }
+            
+            // Handle image removal
+            if ($request->has('remove_image') && $request->remove_image == 1) {
+                if ($product->image && Storage::disk('public')->exists($product->image)) {
+                    Storage::disk('public')->delete($product->image);
+                }
+                $updateData['image'] = null;
+            }
             
             $this->productService->updateProduct($product, $updateData);
             return redirect()->route('products.index')
@@ -154,6 +186,11 @@ class ProductController extends Controller
                     ->with('error', 'Cannot delete product that has been sold.');
             }
             
+            // Delete product image if exists
+            if ($product->image && Storage::disk('public')->exists($product->image)) {
+                Storage::disk('public')->delete($product->image);
+            }
+            
             $this->productService->deleteProduct($product);
             return redirect()->route('products.index')
                 ->with('success', 'Product deleted successfully!');
@@ -172,6 +209,13 @@ class ProductController extends Controller
     public function search(Request $request)
     {
         $products = $this->productService->searchProducts($request->get('q', ''), 10);
+        
+        // Add image URL to response
+        $products->transform(function($product) {
+            $product->image_url = $product->image ? Storage::url($product->image) : null;
+            return $product;
+        });
+        
         return response()->json($products);
     }
 }

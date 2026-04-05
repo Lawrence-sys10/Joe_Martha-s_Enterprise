@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Sales Management')
+@section('title', 'Sales Transactions')
 
 @section('header')
     <div class="bg-gradient-to-r from-amber-500 to-orange-600 shadow-lg">
@@ -26,13 +26,18 @@
 @section('content')
 <div class="py-12">
     <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-        <!-- Stats Cards -->
+        @php
+            $userRoles = Auth::user()->roles->pluck('name')->toArray();
+            $isAttendant = in_array('Attendant', $userRoles);
+        @endphp
+
+        <!-- Stats Cards - Attendants only see today's stats -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <div class="bg-white rounded-2xl shadow-lg border border-amber-100 p-6 hover:shadow-xl transition-all">
                 <div class="flex items-center justify-between">
                     <div>
-                        <p class="text-sm text-amber-600 font-medium">Total Sales</p>
-                        <p class="text-2xl font-bold text-gray-800 mt-2">GHS {{ number_format($totalSales, 2) }}</p>
+                        <p class="text-sm text-amber-600 font-medium">{{ $isAttendant ? "Today's" : "Total" }} Sales</p>
+                        <p class="text-2xl font-bold text-gray-800 mt-2">GHS {{ number_format($isAttendant ? $todaySales : $totalSales, 2) }}</p>
                     </div>
                     <div class="w-12 h-12 bg-gradient-to-br from-green-400 to-emerald-500 rounded-xl flex items-center justify-center">
                         <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -40,7 +45,7 @@
                         </svg>
                     </div>
                 </div>
-                <div class="mt-4 text-xs text-gray-500">All time revenue</div>
+                <div class="mt-4 text-xs text-gray-500">{{ $isAttendant ? "Today's revenue" : "All time revenue" }}</div>
             </div>
             
             <div class="bg-white rounded-2xl shadow-lg border border-amber-100 p-6 hover:shadow-xl transition-all">
@@ -76,8 +81,8 @@
             <div class="bg-white rounded-2xl shadow-lg border border-amber-100 p-6 hover:shadow-xl transition-all">
                 <div class="flex items-center justify-between">
                     <div>
-                        <p class="text-sm text-amber-600 font-medium">Total Transactions</p>
-                        <p class="text-2xl font-bold text-gray-800 mt-2">{{ $totalTransactions }}</p>
+                        <p class="text-sm text-amber-600 font-medium">{{ $isAttendant ? "Today's" : "Total" }} Transactions</p>
+                        <p class="text-2xl font-bold text-gray-800 mt-2">{{ $isAttendant ? $todayCount : $totalTransactions }}</p>
                     </div>
                     <div class="w-12 h-12 bg-gradient-to-br from-orange-400 to-red-500 rounded-xl flex items-center justify-center">
                         <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -85,11 +90,11 @@
                         </svg>
                     </div>
                 </div>
-                <div class="mt-4 text-xs text-gray-500">Total orders processed</div>
+                <div class="mt-4 text-xs text-gray-500">{{ $isAttendant ? "Today's orders" : "Total orders processed" }}</div>
             </div>
         </div>
         
-        <!-- Credit Sales Summary Cards - Integrated with main sales -->
+        <!-- Credit Sales Summary Cards - Attendants can see partial payments but not full credit summary -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <div class="bg-gradient-to-r from-amber-50 to-yellow-50 rounded-2xl shadow-lg border border-amber-200 p-6">
                 <div class="flex items-center justify-between">
@@ -137,7 +142,8 @@
             </div>
         </div>
         
-        <!-- Filters -->
+        <!-- Filters - Attendants don't need filters since they only see today -->
+        @if(!$isAttendant)
         <div class="filter-section">
             <div class="filter-header">
                 <h3 class="text-lg font-semibold text-gray-800">Filter Transactions</h3>
@@ -180,6 +186,7 @@
                 </div>
             </form>
         </div>
+        @endif
         
         <!-- Sales Table -->
         <div class="bg-white rounded-2xl shadow-lg border border-amber-100 overflow-hidden">
@@ -278,7 +285,7 @@
                                 <svg class="w-16 h-16 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                                 </svg>
-                                <p class="text-gray-500">No sales transactions found</p>
+                                <p class="text-gray-500">No sales transactions found for today</p>
                                 <p class="text-sm text-gray-400 mt-1">Start selling to see transactions here</p>
                                 @can('access pos')
                                 <a href="{{ route('pos.index') }}" class="inline-block mt-4 bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 px-4 rounded-lg">
@@ -292,9 +299,11 @@
                 </table>
             </div>
             
+            @if(!$isAttendant)
             <div class="px-6 py-4 border-t border-gray-200">
                 {{ $sales->withQueryString()->links() }}
             </div>
+            @endif
         </div>
     </div>
 </div>

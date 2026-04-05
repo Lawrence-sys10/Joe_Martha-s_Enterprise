@@ -12,9 +12,15 @@
                 Back to Products
             </a>
             @can('edit products')
+            @php
+                $userRoles = Auth::user()->roles->pluck('name')->toArray();
+                $isAttendant = in_array('Attendant', $userRoles);
+            @endphp
+            @if(!$isAttendant)
             <a href="{{ route('products.edit', $product) }}" class="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold py-2 px-4 rounded-lg transition-all">
                 Edit Product
             </a>
+            @endif
             @endcan
         </div>
     </div>
@@ -28,12 +34,16 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <!-- Product Image -->
                     <div class="bg-gradient-to-br from-amber-50 to-orange-50 rounded-lg p-6 flex items-center justify-center">
-                        <div class="text-center">
-                            <svg class="w-32 h-32 text-amber-300 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
-                            </svg>
-                            <p class="text-sm text-amber-400 mt-2">Product Image</p>
-                        </div>
+                        @if($product->image)
+                            <img src="{{ Storage::url($product->image) }}" alt="{{ $product->name }}" class="h-48 w-full object-contain">
+                        @else
+                            <div class="text-center">
+                                <svg class="w-32 h-32 text-amber-300 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                                </svg>
+                                <p class="text-sm text-amber-400 mt-2">No Image</p>
+                            </div>
+                        @endif
                     </div>
                     
                     <!-- Product Info -->
@@ -51,13 +61,20 @@
                                 <p class="text-sm text-gray-600">Unit Price (Selling)</p>
                                 <p class="text-2xl font-bold text-amber-600">GHS {{ number_format($product->unit_price, 2) }}</p>
                             </div>
+                            @php
+                                $userRoles = Auth::user()->roles->pluck('name')->toArray();
+                                $isAttendant = in_array('Attendant', $userRoles);
+                            @endphp
+                            @if(!$isAttendant)
                             <div>
                                 <p class="text-sm text-gray-600">Cost Price (Purchase)</p>
                                 <p class="text-lg text-gray-600">GHS {{ number_format($product->cost_price, 2) }}</p>
                                 <p class="text-xs text-gray-400">(Tax included)</p>
                             </div>
+                            @endif
                         </div>
                         
+                        @if(!$isAttendant)
                         <div class="flex justify-between items-center pb-4 border-b">
                             <div>
                                 <p class="text-sm text-gray-600">Profit Margin</p>
@@ -68,6 +85,7 @@
                                 <p class="text-xl font-bold text-green-600">GHS {{ number_format($product->unit_price - $product->cost_price, 2) }}</p>
                             </div>
                         </div>
+                        @endif
                         
                         <div class="grid grid-cols-2 gap-4">
                             <div>
@@ -78,7 +96,9 @@
                                 @if($product->minimum_stock > 0)
                                 <p class="text-xs text-gray-500">Minimum stock: {{ $product->minimum_stock }} {{ $product->unit }}s</p>
                                 @endif
+                                @if(!$isAttendant)
                                 <p class="text-xs text-gray-400 mt-1">Stock added via purchase orders</p>
+                                @endif
                             </div>
                             <div>
                                 <p class="text-sm text-gray-600">Category</p>
@@ -121,6 +141,7 @@
                                  </thead>
                             <tbody class="bg-white divide-y divide-gray-200">
                                 @foreach($product->stockMovements->sortByDesc('created_at') as $movement)
+                                <tr>
                                     <td class="px-4 py-3 text-sm">{{ $movement->created_at->format('Y-m-d H:i') }}</td>
                                     <td class="px-4 py-3 text-sm">
                                         <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
@@ -128,16 +149,22 @@
                                                ($movement->type == 'sale' ? 'bg-blue-100 text-blue-800' : 'bg-yellow-100 text-yellow-800') }}">
                                             {{ ucfirst($movement->type) }}
                                         </span>
-                                     </div>
+                                    </td>
                                     <td class="px-4 py-3 text-sm text-right {{ $movement->type == 'sale' ? 'text-red-600' : 'text-green-600' }}">
                                         {{ $movement->type == 'sale' ? '-' : '+' }}{{ $movement->quantity }}
-                                     </div>
-                                    <td class="px-4 py-3 text-sm">{{ $movement->notes }}</div>
-                                    <td class="px-4 py-3 text-sm">{{ $movement->user->name ?? 'System' }}</div>
-                                 </tr>
+                                    </td>
+                                    <td class="px-4 py-3 text-sm">
+                                        @if($isAttendant && $movement->type == 'purchase')
+                                            Stock Update
+                                        @else
+                                            {{ $movement->notes }}
+                                        @endif
+                                    </td>
+                                    <td class="px-4 py-3 text-sm">{{ $movement->user->name ?? 'System' }}</td>
+                                </tr>
                                 @endforeach
                             </tbody>
-                         </div>
+                        </table>
                     </div>
                     @else
                     <div class="text-center py-8 bg-gray-50 rounded-lg">
@@ -145,7 +172,9 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                         </svg>
                         <p class="text-gray-500">No stock movements recorded yet.</p>
+                        @if(!$isAttendant)
                         <p class="text-sm text-gray-400 mt-1">Stock will appear when you create purchase orders</p>
+                        @endif
                     </div>
                     @endif
                 </div>

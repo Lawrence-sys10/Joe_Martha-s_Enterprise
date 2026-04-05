@@ -64,7 +64,7 @@
                         </div>
                         <div class="flex-1 text-center">
                             <div class="w-8 h-8 bg-gray-200 text-gray-500 rounded-full flex items-center justify-center mx-auto mb-2">3</div>
-                            <p class="text-xs text-gray-500">Status</p>
+                            <p class="text-xs text-gray-500">Image & Status</p>
                         </div>
                     </div>
                     
@@ -168,7 +168,7 @@
                         </div>
                     </div>
                     
-                    <!-- Pricing Section (No Stock, No Tax) -->
+                    <!-- Pricing Section -->
                     <div class="section" id="section-pricing" style="display: none;">
                         <div class="flex items-center gap-3 mb-6">
                             <div class="w-10 h-10 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-xl flex items-center justify-center">
@@ -249,18 +249,46 @@
                         </div>
                     </div>
                     
-                    <!-- Status Section -->
+                    <!-- Image & Status Section -->
                     <div class="section" id="section-status" style="display: none;">
                         <div class="flex items-center gap-3 mb-6">
                             <div class="w-10 h-10 bg-gradient-to-br from-purple-400 to-pink-500 rounded-xl flex items-center justify-center">
                                 <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                                 </svg>
                             </div>
-                            <h3 class="text-xl font-bold text-gray-800">Status</h3>
+                            <h3 class="text-xl font-bold text-gray-800">Product Image & Status</h3>
                         </div>
                         
-                        <div class="mt-4">
+                        <!-- Image Upload Section -->
+                        <div class="mb-6">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Product Image</label>
+                            <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg hover:border-amber-500 transition-colors cursor-pointer" id="imageDropzone">
+                                <div class="space-y-1 text-center">
+                                    <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                                        <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m-4-4l3.172 3.172a4 4 0 005.656 0L44 28" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                    </svg>
+                                    <div class="flex text-sm text-gray-600">
+                                        <label for="image" class="relative cursor-pointer bg-white rounded-md font-medium text-amber-600 hover:text-amber-500 focus-within:outline-none">
+                                            <span>Upload an image</span>
+                                            <input id="image" name="image" type="file" class="sr-only" accept="image/*" onchange="previewImage(this)">
+                                        </label>
+                                        <p class="pl-1">or drag and drop</p>
+                                    </div>
+                                    <p class="text-xs text-gray-500">PNG, JPG, GIF up to 2MB</p>
+                                </div>
+                            </div>
+                            <div id="imagePreview" class="mt-3 hidden">
+                                <img id="preview" class="h-32 w-32 object-cover rounded-lg border border-amber-200" src="#" alt="Preview">
+                                <button type="button" onclick="removeImage()" class="mt-1 text-xs text-red-600 hover:text-red-800">Remove</button>
+                            </div>
+                            @error('image')
+                                <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+                            @enderror
+                        </div>
+                        
+                        <!-- Status Section -->
+                        <div class="mt-6">
                             <label class="inline-flex items-center cursor-pointer">
                                 <input type="checkbox" name="is_active" value="1" {{ old('is_active', true) ? 'checked' : '' }}
                                        class="rounded border-gray-300 text-amber-500 focus:ring-amber-500 w-5 h-5">
@@ -424,6 +452,32 @@
                 </div>
             `;
         }
+    }
+    
+    function previewImage(input) {
+        const preview = document.getElementById('preview');
+        const imagePreview = document.getElementById('imagePreview');
+        
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                preview.src = e.target.result;
+                imagePreview.classList.remove('hidden');
+            }
+            
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+    
+    function removeImage() {
+        const imageInput = document.getElementById('image');
+        const imagePreview = document.getElementById('imagePreview');
+        const preview = document.getElementById('preview');
+        
+        imageInput.value = '';
+        imagePreview.classList.add('hidden');
+        preview.src = '#';
     }
     
     if (unitPriceInput && costPriceInput) {

@@ -29,9 +29,15 @@
             
             $totalLowStock = $lowStockProducts->count();
             $totalOutOfStock = $outOfStockProducts->count();
+            
+            // Get the authenticated user's role names
+            $userRoles = Auth::user()->roles->pluck('name')->toArray();
+            $isAttendant = in_array('Attendant', $userRoles) || in_array('attendant', $userRoles);
+            $isAdmin = in_array('Admin', $userRoles) || in_array('admin', $userRoles);
+            $isManager = in_array('Manager', $userRoles) || in_array('manager', $userRoles);
         @endphp
         
-        <!-- Stock Alert Banner - Red for Out of Stock, Yellow for Low Stock -->
+        <!-- Stock Alert Banner -->
         @if($totalOutOfStock > 0 || $totalLowStock > 0)
         <div class="mb-6 {{ $totalOutOfStock > 0 ? 'bg-red-50 border-l-4 border-red-500' : 'bg-yellow-50 border-l-4 border-yellow-500' }} rounded-lg shadow-md overflow-hidden">
             <div class="p-4">
@@ -72,7 +78,7 @@
             @if($totalOutOfStock > 0)
             <div class="bg-white border-t border-red-100">
                 <div class="px-4 py-2 bg-red-50 border-b border-red-100">
-                    <p class="text-sm font-semibold text-red-700">🚫 Out of Stock Items (Need Immediate Restock)</p>
+                    <p class="text-sm font-semibold text-red-700">🚫 Out of Stock Items</p>
                 </div>
                 <div class="divide-y divide-gray-100">
                     @foreach($outOfStockProducts as $product)
@@ -95,11 +101,13 @@
                                 <p class="text-sm text-gray-600">Current Stock:</p>
                                 <p class="text-xl font-bold text-red-600">0 {{ $product->unit }}s</p>
                             </div>
+                            @if(!$isAttendant)
                             <div class="flex gap-2">
                                 <a href="{{ route('suppliers.index') }}" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-lg text-sm transition-colors">
                                     Restock
                                 </a>
                             </div>
+                            @endif
                         </div>
                     </div>
                     @endforeach
@@ -111,7 +119,7 @@
             @if($totalLowStock > 0)
             <div class="bg-white border-t border-yellow-100">
                 <div class="px-4 py-2 bg-yellow-50 border-b border-yellow-100">
-                    <p class="text-sm font-semibold text-yellow-700">⚠️ Low Stock Items (Order Soon)</p>
+                    <p class="text-sm font-semibold text-yellow-700">⚠️ Low Stock Items</p>
                 </div>
                 <div class="divide-y divide-gray-100">
                     @foreach($lowStockProducts as $product)
@@ -135,6 +143,7 @@
                                 <p class="text-xl font-bold text-yellow-600">{{ $product->stock_quantity }} <span class="text-sm">{{ $product->unit }}s</span></p>
                                 <p class="text-xs text-gray-500">Min: {{ $product->minimum_stock }} {{ $product->unit }}s</p>
                             </div>
+                            @if(!$isAttendant)
                             <div class="w-32">
                                 <div class="w-full bg-gray-200 rounded-full h-2">
                                     @php
@@ -150,6 +159,7 @@
                                     Restock
                                 </a>
                             </div>
+                            @endif
                         </div>
                     </div>
                     @endforeach
@@ -159,7 +169,7 @@
         </div>
         @endif
         
-        <!-- Stats Grid - 6 cards for better overview -->
+        <!-- Stats Grid -->
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
             <!-- Total Products Card -->
             <div class="bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden border border-amber-100">
@@ -189,6 +199,40 @@
                         <div class="w-10 h-10 bg-gradient-to-br from-green-400 to-emerald-500 rounded-xl flex items-center justify-center">
                             <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Cash Received Card - Now visible to Attendants -->
+            <div class="bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden border border-amber-100">
+                <div class="p-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-xs text-amber-600 font-medium uppercase tracking-wide">Cash Received</p>
+                            <p class="text-2xl font-bold text-gray-800 mt-1">GHS {{ number_format($todayCashReceived, 2) }}</p>
+                        </div>
+                        <div class="w-10 h-10 bg-gradient-to-br from-teal-400 to-cyan-500 rounded-xl flex items-center justify-center">
+                            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm0 0v4"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Collection Rate Card - Now visible to Attendants -->
+            <div class="bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden border border-amber-100">
+                <div class="p-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-xs text-amber-600 font-medium uppercase tracking-wide">Collection Rate</p>
+                            <p class="text-2xl font-bold text-gray-800 mt-1">{{ $todaySales > 0 ? number_format(($todayCashReceived / $todaySales) * 100, 1) : 0 }}%</p>
+                        </div>
+                        <div class="w-10 h-10 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-xl flex items-center justify-center">
+                            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                             </svg>
                         </div>
                     </div>
@@ -228,7 +272,11 @@
                     </div>
                 </div>
             </div>
-            
+        </div>
+        
+        <!-- Additional Stats Row for Admins/Managers -->
+        @if(!$isAttendant)
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4 mb-8">
             <!-- Stock Value Card -->
             <div class="bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden border border-amber-100">
                 <div class="p-4">
@@ -265,8 +313,10 @@
                 </div>
             </div>
         </div>
+        @endif
         
-        <!-- Profit & Loss Section -->
+        <!-- Profit & Loss Section - Hidden for Attendants -->
+        @if(!$isAttendant)
         <div class="bg-white rounded-xl shadow-lg border border-amber-100 overflow-hidden mb-8">
             <div class="bg-gradient-to-r from-amber-500 to-orange-600 px-6 py-4">
                 <div class="flex items-center justify-between">
@@ -403,6 +453,7 @@
                 </div>
             </div>
         </div>
+        @endif
         
         <!-- Three Column Layout for Sales, Purchases, and Top Products -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -440,7 +491,8 @@
                 </div>
             </div>
             
-            <!-- Recent Purchases -->
+            <!-- Recent Purchases - Hidden for Attendants -->
+            @if(!$isAttendant)
             <div class="bg-white rounded-xl shadow-sm overflow-hidden border border-amber-100">
                 <div class="p-5 border-b border-amber-100">
                     <div class="flex justify-between items-center">
@@ -473,31 +525,47 @@
                     @endif
                 </div>
             </div>
+            @endif
             
-            <!-- Top Selling Products -->
+            <!-- Top Selling Products - Filtered to Today for Attendants -->
             <div class="bg-white rounded-xl shadow-sm overflow-hidden border border-amber-100">
                 <div class="p-5 border-b border-amber-100">
                     <div class="flex justify-between items-center">
                         <div>
                             <h3 class="text-lg font-semibold text-gray-800">Top Selling Products</h3>
-                            <p class="text-xs text-amber-600 mt-1">This month's best sellers</p>
+                            <p class="text-xs text-amber-600 mt-1">{{ $isAttendant ? "Today's best sellers" : "This month's best sellers" }}</p>
                         </div>
                         <a href="{{ route('products.index') }}" class="text-xs text-amber-600 hover:text-amber-800">View All →</a>
                     </div>
                 </div>
                 <div class="p-5">
                     @php
-                        $topProducts = \DB::table('sale_items')
-                            ->join('products', 'sale_items.product_id', '=', 'products.id')
-                            ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
-                            ->whereMonth('sales.sale_date', now()->month)
-                            ->whereYear('sales.sale_date', now()->year)
-                            ->where('sales.status', 'completed')
-                            ->select('products.name', \DB::raw('SUM(sale_items.quantity) as total_sold'), \DB::raw('SUM(sale_items.total) as total_revenue'))
-                            ->groupBy('products.id', 'products.name')
-                            ->orderBy('total_sold', 'desc')
-                            ->limit(5)
-                            ->get();
+                        if ($isAttendant) {
+                            // Attendants see only today's top products
+                            $topProducts = \DB::table('sale_items')
+                                ->join('products', 'sale_items.product_id', '=', 'products.id')
+                                ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
+                                ->whereDate('sales.sale_date', today())
+                                ->where('sales.status', 'completed')
+                                ->select('products.name', \DB::raw('SUM(sale_items.quantity) as total_sold'), \DB::raw('SUM(sale_items.total) as total_revenue'))
+                                ->groupBy('products.id', 'products.name')
+                                ->orderBy('total_sold', 'desc')
+                                ->limit(5)
+                                ->get();
+                        } else {
+                            // Admins/Managers see monthly top products
+                            $topProducts = \DB::table('sale_items')
+                                ->join('products', 'sale_items.product_id', '=', 'products.id')
+                                ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
+                                ->whereMonth('sales.sale_date', now()->month)
+                                ->whereYear('sales.sale_date', now()->year)
+                                ->where('sales.status', 'completed')
+                                ->select('products.name', \DB::raw('SUM(sale_items.quantity) as total_sold'), \DB::raw('SUM(sale_items.total) as total_revenue'))
+                                ->groupBy('products.id', 'products.name')
+                                ->orderBy('total_sold', 'desc')
+                                ->limit(5)
+                                ->get();
+                        }
                     @endphp
                     @if($topProducts->count() > 0)
                         <div class="space-y-4">
@@ -517,7 +585,7 @@
                             @endforeach
                         </div>
                     @else
-                        <p class="text-amber-600 text-center py-8 text-sm">No sales data available</p>
+                        <p class="text-amber-600 text-center py-8 text-sm">{{ $isAttendant ? "No sales recorded today" : "No sales data available" }}</p>
                     @endif
                 </div>
             </div>
@@ -528,6 +596,7 @@
             <div class="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl p-5 border border-amber-200">
                 <h3 class="text-base font-semibold text-gray-800 mb-3">Quick Actions</h3>
                 <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+                    @if(!$isAttendant)
                     @can('create products')
                     <a href="{{ route('products.create') }}" class="flex items-center justify-center gap-2 bg-white hover:bg-amber-50 text-amber-700 font-medium py-2 px-3 rounded-lg border border-amber-200 transition-colors text-sm">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -536,6 +605,7 @@
                         <span>Add Product</span>
                     </a>
                     @endcan
+                    @endif
                     
                     @can('access pos')
                     <a href="{{ route('pos.index') }}" class="flex items-center justify-center gap-2 bg-white hover:bg-amber-50 text-amber-700 font-medium py-2 px-3 rounded-lg border border-amber-200 transition-colors text-sm">
@@ -555,6 +625,7 @@
                     </a>
                     @endcan
                     
+                    @if(!$isAttendant)
                     @can('view purchases')
                     <a href="{{ route('suppliers.index') }}" class="flex items-center justify-center gap-2 bg-white hover:bg-amber-50 text-amber-700 font-medium py-2 px-3 rounded-lg border border-amber-200 transition-colors text-sm">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -563,6 +634,7 @@
                         <span>New Purchase</span>
                     </a>
                     @endcan
+                    @endif
                     
                     @can('view reports')
                     <a href="{{ route('reports.daily') }}" class="flex items-center justify-center gap-2 bg-white hover:bg-amber-50 text-amber-700 font-medium py-2 px-3 rounded-lg border border-amber-200 transition-colors text-sm">
@@ -580,20 +652,28 @@
 
 <script>
 function showPeriod(period) {
-    document.getElementById('dayPeriod').classList.add('hidden');
-    document.getElementById('monthPeriod').classList.add('hidden');
-    document.getElementById('yearPeriod').classList.add('hidden');
-    document.getElementById(period + 'Period').classList.remove('hidden');
+    const dayPeriod = document.getElementById('dayPeriod');
+    const monthPeriod = document.getElementById('monthPeriod');
+    const yearPeriod = document.getElementById('yearPeriod');
+    
+    if (dayPeriod) dayPeriod.classList.add('hidden');
+    if (monthPeriod) monthPeriod.classList.add('hidden');
+    if (yearPeriod) yearPeriod.classList.add('hidden');
+    
+    const selectedPeriod = document.getElementById(period + 'Period');
+    if (selectedPeriod) selectedPeriod.classList.remove('hidden');
     
     const buttons = ['day', 'month', 'year'];
     buttons.forEach(btn => {
         const element = document.getElementById(btn + 'Btn');
-        if (btn === period) {
-            element.classList.add('bg-white/30');
-            element.classList.remove('bg-white/20');
-        } else {
-            element.classList.add('bg-white/20');
-            element.classList.remove('bg-white/30');
+        if (element) {
+            if (btn === period) {
+                element.classList.add('bg-white/30');
+                element.classList.remove('bg-white/20');
+            } else {
+                element.classList.add('bg-white/20');
+                element.classList.remove('bg-white/30');
+            }
         }
     });
 }

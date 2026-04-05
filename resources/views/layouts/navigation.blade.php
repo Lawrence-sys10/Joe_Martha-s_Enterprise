@@ -68,7 +68,7 @@
                     </a>
                     @endcan
                     
-                    <!-- Reports Dropdown - Compact -->
+                    <!-- Reports Dropdown - Role-based visibility -->
                     <div class="relative" x-data="{ open: false }">
                         <button @click="open = !open" class="inline-flex items-center px-2 py-2 text-sm font-medium text-amber-600 hover:text-amber-800">
                             <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -80,21 +80,38 @@
                             </svg>
                         </button>
                         <div x-show="open" @click.away="open = false" class="absolute left-0 mt-2 w-52 bg-white rounded-lg shadow-lg py-1 z-50 border border-amber-100">
-                            <a href="{{ route('reports.daily') }}" class="block px-4 py-2 text-sm text-amber-700 hover:bg-amber-50">📊 Daily Sales</a>
-                            <a href="{{ route('reports.monthly') }}" class="block px-4 py-2 text-sm text-amber-700 hover:bg-amber-50">📈 Monthly Sales</a>
-                            <a href="{{ route('reports.profit-loss') }}" class="block px-4 py-2 text-sm text-amber-700 hover:bg-amber-50">💰 Profit & Loss</a>
-                            <a href="{{ route('reports.stock-valuation') }}" class="block px-4 py-2 text-sm text-amber-700 hover:bg-amber-50">📦 Stock Valuation</a>
-                            <a href="{{ route('reports.top-products') }}" class="block px-4 py-2 text-sm text-amber-700 hover:bg-amber-50">🏆 Top Products</a>
-                            <a href="{{ route('reports.customer-debt') }}" class="block px-4 py-2 text-sm text-amber-700 hover:bg-amber-50">👥 Customer Debt</a>
-                            <a href="{{ route('reports.supplier-balance') }}" class="block px-4 py-2 text-sm text-amber-700 hover:bg-amber-50">🏭 Supplier Balance</a>
-                            <a href="{{ route('reports.cash-flow') }}" class="block px-4 py-2 text-sm text-amber-700 hover:bg-amber-50">💵 Cash Flow</a>
-                            <a href="{{ route('expenses.index') }}" class="block px-4 py-2 text-sm text-amber-700 hover:bg-amber-50">
-                                <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
-                                </svg>
-                                Expenses
-                            </a>
-                            <a href="{{ route('payments.index') }}" class="block px-4 py-2 text-sm text-amber-700 hover:bg-amber-50">💳 Payments</a>
+                            @php
+                                $userRoles = Auth::user()->roles->pluck('name')->toArray();
+                                $isAttendant = in_array('Attendant', $userRoles) || in_array('attendant', $userRoles);
+                            @endphp
+                            
+                            @if($isAttendant)
+                                <!-- Attendant sees only Today's Sales and Customer Debt -->
+                                <a href="{{ route('reports.daily') }}" class="block px-4 py-2 text-sm text-amber-700 hover:bg-amber-50">📊 Today's Sales</a>
+                                <a href="{{ route('reports.customer-debt') }}" class="block px-4 py-2 text-sm text-amber-700 hover:bg-amber-50">👥 Customer Debt</a>
+                            @else
+                                <!-- Admin/Manager sees all reports -->
+                                <a href="{{ route('reports.daily') }}" class="block px-4 py-2 text-sm text-amber-700 hover:bg-amber-50">📊 Daily Sales</a>
+                                <a href="{{ route('reports.monthly') }}" class="block px-4 py-2 text-sm text-amber-700 hover:bg-amber-50">📈 Monthly Sales</a>
+                                <a href="{{ route('reports.profit-loss') }}" class="block px-4 py-2 text-sm text-amber-700 hover:bg-amber-50">💰 Profit & Loss</a>
+                                <a href="{{ route('reports.stock-valuation') }}" class="block px-4 py-2 text-sm text-amber-700 hover:bg-amber-50">📦 Stock Valuation</a>
+                                <a href="{{ route('reports.top-products') }}" class="block px-4 py-2 text-sm text-amber-700 hover:bg-amber-50">🏆 Top Products</a>
+                                <a href="{{ route('reports.customer-debt') }}" class="block px-4 py-2 text-sm text-amber-700 hover:bg-amber-50">👥 Customer Debt</a>
+                                <a href="{{ route('reports.supplier-balance') }}" class="block px-4 py-2 text-sm text-amber-700 hover:bg-amber-50">🏭 Supplier Balance</a>
+                                <a href="{{ route('reports.cash-flow') }}" class="block px-4 py-2 text-sm text-amber-700 hover:bg-amber-50">💵 Cash Flow</a>
+                                <a href="{{ route('expenses.index') }}" class="block px-4 py-2 text-sm text-amber-700 hover:bg-amber-50">
+                                    <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                                    </svg>
+                                    Expenses
+                                </a>
+                                <a href="{{ route('reports.supplier-payments') }}" class="block px-4 py-2 text-sm text-amber-700 hover:bg-amber-50">
+                                    <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm0 0v2m0-2h4m4 0v2"></path>
+                                    </svg>
+                                    Supplier Payments
+                                </a>
+                            @endif
                         </div>
                     </div>
                     
@@ -125,10 +142,41 @@
                         </svg>
                     </button>
                     
-                    <div x-show="open" @click.away="open = false" class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-1 z-50 border border-amber-100">
+                    <div x-show="open" @click.away="open = false" class="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg py-1 z-50 border border-amber-100">
+                        <!-- User Management (Admin only) -->
+                        @can('manage users')
+                        <a href="{{ route('users.index') }}" class="block px-4 py-2 text-sm text-amber-700 hover:bg-amber-50">
+                            <svg class="inline w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                            </svg>
+                            User Management
+                        </a>
+                        @endcan
+                        
+                        <!-- Change Password -->
+                        <a href="{{ route('password.change') }}" class="block px-4 py-2 text-sm text-amber-700 hover:bg-amber-50">
+                            <svg class="inline w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path>
+                            </svg>
+                            Change Password
+                        </a>
+                        
+                        <!-- Reset Password (Admin only - can reset other users) -->
+                        @can('reset passwords')
+                        <a href="{{ route('password.reset-users') }}" class="block px-4 py-2 text-sm text-amber-700 hover:bg-amber-50">
+                            <svg class="inline w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636L16.95 7.05m2.828 2.828L16.95 7.05m0 0L15.536 8.464M12 12H4m12 0v4m4-10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                            </svg>
+                            Reset User Passwords
+                        </a>
+                        @endcan
+                        
+                        <div class="border-t border-gray-200 my-1"></div>
+                        
+                        <!-- Log Out -->
                         <form method="POST" action="{{ route('logout') }}">
                             @csrf
-                            <button type="submit" class="block w-full text-left px-4 py-2 text-sm text-amber-700 hover:bg-amber-50">
+                            <button type="submit" class="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50">
                                 <svg class="inline w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
                                 </svg>
@@ -178,25 +226,58 @@
                     </svg>
                 </button>
                 <div x-show="openReports" class="pl-4 space-y-1">
-                    <a href="{{ route('reports.daily') }}" class="block pl-3 pr-4 py-2 text-sm text-amber-600 hover:text-amber-800 hover:bg-amber-50">📊 Daily Sales</a>
-                    <a href="{{ route('reports.monthly') }}" class="block pl-3 pr-4 py-2 text-sm text-amber-600 hover:text-amber-800 hover:bg-amber-50">📈 Monthly Sales</a>
-                    <a href="{{ route('reports.profit-loss') }}" class="block pl-3 pr-4 py-2 text-sm text-amber-600 hover:text-amber-800 hover:bg-amber-50">💰 Profit & Loss</a>
-                    <a href="{{ route('reports.stock-valuation') }}" class="block pl-3 pr-4 py-2 text-sm text-amber-600 hover:text-amber-800 hover:bg-amber-50">📦 Stock Valuation</a>
-                    <a href="{{ route('reports.top-products') }}" class="block pl-3 pr-4 py-2 text-sm text-amber-600 hover:text-amber-800 hover:bg-amber-50">🏆 Top Products</a>
-                    <a href="{{ route('reports.customer-debt') }}" class="block pl-3 pr-4 py-2 text-sm text-amber-600 hover:text-amber-800 hover:bg-amber-50">👥 Customer Debt</a>
-                    <a href="{{ route('reports.supplier-balance') }}" class="block pl-3 pr-4 py-2 text-sm text-amber-600 hover:text-amber-800 hover:bg-amber-50">🏭 Supplier Balance</a>
-                    <a href="{{ route('reports.cash-flow') }}" class="block pl-3 pr-4 py-2 text-sm text-amber-600 hover:text-amber-800 hover:bg-amber-50">💵 Cash Flow</a>
-                    <a href="{{ route('expenses.index') }}" class="block pl-3 pr-4 py-2 text-sm text-amber-600 hover:text-amber-800 hover:bg-amber-50">💸 Expenses</a>
-                    <a href="{{ route('payments.index') }}" class="block pl-3 pr-4 py-2 text-sm text-amber-600 hover:text-amber-800 hover:bg-amber-50">💳 Payments</a>
+                    @php
+                        $userRoles = Auth::user()->roles->pluck('name')->toArray();
+                        $isAttendantMobile = in_array('Attendant', $userRoles) || in_array('attendant', $userRoles);
+                    @endphp
+                    
+                    @if($isAttendantMobile)
+                        <a href="{{ route('reports.daily') }}" class="block pl-3 pr-4 py-2 text-sm text-amber-600 hover:text-amber-800 hover:bg-amber-50">📊 Today's Sales</a>
+                        <a href="{{ route('reports.customer-debt') }}" class="block pl-3 pr-4 py-2 text-sm text-amber-600 hover:text-amber-800 hover:bg-amber-50">👥 Customer Debt</a>
+                    @else
+                        <a href="{{ route('reports.daily') }}" class="block pl-3 pr-4 py-2 text-sm text-amber-600 hover:text-amber-800 hover:bg-amber-50">📊 Daily Sales</a>
+                        <a href="{{ route('reports.monthly') }}" class="block pl-3 pr-4 py-2 text-sm text-amber-600 hover:text-amber-800 hover:bg-amber-50">📈 Monthly Sales</a>
+                        <a href="{{ route('reports.profit-loss') }}" class="block pl-3 pr-4 py-2 text-sm text-amber-600 hover:text-amber-800 hover:bg-amber-50">💰 Profit & Loss</a>
+                        <a href="{{ route('reports.stock-valuation') }}" class="block pl-3 pr-4 py-2 text-sm text-amber-600 hover:text-amber-800 hover:bg-amber-50">📦 Stock Valuation</a>
+                        <a href="{{ route('reports.top-products') }}" class="block pl-3 pr-4 py-2 text-sm text-amber-600 hover:text-amber-800 hover:bg-amber-50">🏆 Top Products</a>
+                        <a href="{{ route('reports.customer-debt') }}" class="block pl-3 pr-4 py-2 text-sm text-amber-600 hover:text-amber-800 hover:bg-amber-50">👥 Customer Debt</a>
+                        <a href="{{ route('reports.supplier-balance') }}" class="block pl-3 pr-4 py-2 text-sm text-amber-600 hover:text-amber-800 hover:bg-amber-50">🏭 Supplier Balance</a>
+                        <a href="{{ route('reports.cash-flow') }}" class="block pl-3 pr-4 py-2 text-sm text-amber-600 hover:text-amber-800 hover:bg-amber-50">💵 Cash Flow</a>
+                        <a href="{{ route('expenses.index') }}" class="block pl-3 pr-4 py-2 text-sm text-amber-600 hover:text-amber-800 hover:bg-amber-50">💸 Expenses</a>
+                        <a href="{{ route('reports.supplier-payments') }}" class="block pl-3 pr-4 py-2 text-sm text-amber-600 hover:text-amber-800 hover:bg-amber-50">
+                            <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm0 0v2m0-2h4m4 0v2"></path>
+                            </svg>
+                            Supplier Payments
+                        </a>
+                    @endif
                 </div>
             </div>
             @can('view cctv')
             <a href="{{ route('cctv.index') }}" class="block pl-3 pr-4 py-2 text-base font-medium text-amber-600 hover:text-amber-800 hover:bg-amber-50">CCTV</a>
             @endcan
+            
+            <!-- Mobile Settings Section -->
+            <div class="border-t border-gray-200 my-2 pt-2">
+                @can('manage users')
+                <a href="{{ route('users.index') }}" class="block pl-3 pr-4 py-2 text-base font-medium text-amber-600 hover:text-amber-800 hover:bg-amber-50">
+                    👥 User Management
+                </a>
+                @endcan
+                <a href="{{ route('password.change') }}" class="block pl-3 pr-4 py-2 text-base font-medium text-amber-600 hover:text-amber-800 hover:bg-amber-50">
+                    🔐 Change Password
+                </a>
+                @can('reset passwords')
+                <a href="{{ route('password.reset-users') }}" class="block pl-3 pr-4 py-2 text-base font-medium text-amber-600 hover:text-amber-800 hover:bg-amber-50">
+                    🔄 Reset User Passwords
+                </a>
+                @endcan
+            </div>
+            
             <div class="border-t border-gray-200 my-2"></div>
             <form method="POST" action="{{ route('logout') }}">
                 @csrf
-                <button type="submit" class="block w-full text-left pl-3 pr-4 py-2 text-base font-medium text-amber-600 hover:text-amber-800 hover:bg-amber-50">Log Out</button>
+                <button type="submit" class="block w-full text-left pl-3 pr-4 py-2 text-base font-medium text-red-600 hover:text-red-800 hover:bg-red-50">Log Out</button>
             </form>
         </div>
     </div>
