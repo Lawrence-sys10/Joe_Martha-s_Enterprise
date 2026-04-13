@@ -50,13 +50,24 @@
         </div>
         @endif
         
-        <!-- Stats Cards -->
+        <!-- Stats Cards - Using actual totals from database -->
+        @php
+            $totalCustomers = \App\Models\Customer::count();
+            $activeCustomers = \App\Models\Customer::where('is_active', true)->count();
+            $totalBalanceDue = \App\Models\Customer::sum('current_balance');
+            $customersWithBalance = \App\Models\Customer::where('current_balance', '>', 0)->count();
+            $totalCreditLimit = \App\Models\Customer::sum('credit_limit');
+            $avgCreditLimit = $totalCustomers > 0 ? $totalCreditLimit / $totalCustomers : 0;
+            $totalStoreCredit = abs(\App\Models\Customer::where('current_balance', '<', 0)->sum('current_balance'));
+            $customersWithCredit = \App\Models\Customer::where('current_balance', '<', 0)->count();
+        @endphp
+        
         <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             <div class="bg-white rounded-2xl shadow-xl border border-amber-100 p-6 hover:shadow-xl transition-all">
                 <div class="flex items-center justify-between">
                     <div>
                         <p class="text-sm text-gray-500">Total Customers</p>
-                        <p class="text-2xl font-bold text-gray-800 mt-2">{{ $customers->total() }}</p>
+                        <p class="text-2xl font-bold text-gray-800 mt-2">{{ $totalCustomers }}</p>
                     </div>
                     <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
                         <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -65,7 +76,7 @@
                     </div>
                 </div>
                 <div class="mt-3 text-xs text-gray-500">
-                    <span class="text-green-600">{{ $customers->where('is_active', true)->count() }}</span> active
+                    <span class="text-green-600">{{ $activeCustomers }}</span> active
                 </div>
             </div>
             
@@ -73,7 +84,7 @@
                 <div class="flex items-center justify-between">
                     <div>
                         <p class="text-sm text-gray-500">Total Balance Due</p>
-                        <p class="text-2xl font-bold text-red-600 mt-2">GHS {{ number_format($customers->sum('current_balance'), 2) }}</p>
+                        <p class="text-2xl font-bold text-red-600 mt-2">GHS {{ number_format($totalBalanceDue, 2) }}</p>
                     </div>
                     <div class="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
                         <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -82,7 +93,7 @@
                     </div>
                 </div>
                 <div class="mt-3 text-xs text-gray-500">
-                    {{ $customers->where('current_balance', '>', 0)->count() }} customers owe
+                    {{ $customersWithBalance }} customers owe
                 </div>
             </div>
             
@@ -90,7 +101,7 @@
                 <div class="flex items-center justify-between">
                     <div>
                         <p class="text-sm text-gray-500">Average Credit Limit</p>
-                        <p class="text-2xl font-bold text-purple-600 mt-2">GHS {{ number_format($customers->avg('credit_limit') ?? 0, 2) }}</p>
+                        <p class="text-2xl font-bold text-purple-600 mt-2">GHS {{ number_format($avgCreditLimit, 2) }}</p>
                     </div>
                     <div class="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
                         <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -99,7 +110,7 @@
                     </div>
                 </div>
                 <div class="mt-3 text-xs text-gray-500">
-                    Total: GHS {{ number_format($customers->sum('credit_limit'), 2) }}
+                    Total: GHS {{ number_format($totalCreditLimit, 2) }}
                 </div>
             </div>
             
@@ -107,7 +118,7 @@
                 <div class="flex items-center justify-between">
                     <div>
                         <p class="text-sm text-gray-500">Store Credit</p>
-                        <p class="text-2xl font-bold text-green-600 mt-2">GHS {{ number_format(abs($customers->where('current_balance', '<', 0)->sum('current_balance')), 2) }}</p>
+                        <p class="text-2xl font-bold text-green-600 mt-2">GHS {{ number_format($totalStoreCredit, 2) }}</p>
                     </div>
                     <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
                         <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -116,7 +127,7 @@
                     </div>
                 </div>
                 <div class="mt-3 text-xs text-gray-500">
-                    {{ $customers->where('current_balance', '<', 0)->count() }} customers have credit
+                    {{ $customersWithCredit }} customers have credit
                 </div>
             </div>
         </div>
@@ -153,8 +164,8 @@
                         <p class="text-sm text-gray-500 mt-1">All registered customers</p>
                     </div>
                     <div class="flex gap-2">
-                        <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">Active: {{ $customers->where('is_active', true)->count() }}</span>
-                        <span class="text-xs bg-red-100 text-red-800 px-2 py-1 rounded-full">With Balance: {{ $customers->where('current_balance', '>', 0)->count() }}</span>
+                        <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">Active: {{ $activeCustomers }}</span>
+                        <span class="text-xs bg-red-100 text-red-800 px-2 py-1 rounded-full">With Balance: {{ $customersWithBalance }}</span>
                     </div>
                 </div>
             </div>
@@ -275,7 +286,7 @@
                         <tr class="font-semibold">
                             <td colspan="3" class="px-6 py-4 text-right">Total Balance Due: </td>
                             <td class="px-6 py-4 text-right text-lg font-bold text-red-600">
-                                GHS {{ number_format($customers->sum('current_balance'), 2) }}
+                                GHS {{ number_format($totalBalanceDue, 2) }}
                              </td>
                             <td colspan="3"></td>
                          </tr>

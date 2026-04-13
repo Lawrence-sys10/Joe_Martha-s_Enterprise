@@ -74,7 +74,7 @@ class ProductController extends Controller
             'minimum_stock' => 'nullable|integer|min:0',
             'unit' => 'required|string|max:50',
             'is_active' => 'boolean',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048' // Image validation
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048'
         ]);
 
         if ($validator->fails()) {
@@ -128,6 +128,8 @@ class ProductController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
+            'sku' => 'nullable|string|unique:products,sku,' . $product->id,
+            'barcode' => 'nullable|string|unique:products,barcode,' . $product->id,
             'category_id' => 'nullable|exists:categories,id',
             'description' => 'nullable|string',
             'unit_price' => 'required|numeric|min:0',
@@ -217,5 +219,74 @@ class ProductController extends Controller
         });
         
         return response()->json($products);
+    }
+
+    /**
+     * Get product by barcode (API endpoint for POS)
+     */
+    public function getProductByBarcode($barcode)
+    {
+        $product = Product::where('barcode', $barcode)
+            ->where('is_active', true)
+            ->where('stock_quantity', '>', 0)
+            ->first();
+        
+        if ($product) {
+            return response()->json([
+                'success' => true,
+                'product' => [
+                    'id' => $product->id,
+                    'name' => $product->name,
+                    'sku' => $product->sku,
+                    'barcode' => $product->barcode,
+                    'unit_price' => $product->unit_price,
+                    'stock_quantity' => $product->stock_quantity,
+                    'unit' => $product->unit,
+                    'image_url' => $product->image_url
+                ]
+            ]);
+        }
+        
+        return response()->json([
+            'success' => false,
+            'message' => 'Product not found or out of stock'
+        ], 404);
+    }
+
+    /**
+     * Get product by barcode for POS (alternative method)
+     */
+    public function getProductByBarcodeForPOS($barcode)
+    {
+        $product = Product::where('barcode', $barcode)
+            ->where('is_active', true)
+            ->first();
+        
+        if (!$product) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Product not found'
+            ], 404);
+        }
+        
+        if ($product->stock_quantity <= 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Product is out of stock'
+            ], 400);
+        }
+        
+        return response()->json([
+            'success' => true,
+            'product' => [
+                'id' => $product->id,
+                'name' => $product->name,
+                'sku' => $product->sku,
+                'barcode' => $product->barcode,
+                'unit_price' => $product->unit_price,
+                'stock_quantity' => $product->stock_quantity,
+                'unit' => $product->unit
+            ]
+        ]);
     }
 }

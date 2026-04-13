@@ -76,6 +76,22 @@ class Product extends Model
     }
 
     /**
+     * Find a product by barcode.
+     */
+    public static function findByBarcode($barcode)
+    {
+        return static::where('barcode', $barcode)->first();
+    }
+
+    /**
+     * Find a product by barcode or return null.
+     */
+    public static function findByBarcodeOrFail($barcode)
+    {
+        return static::where('barcode', $barcode)->firstOrFail();
+    }
+
+    /**
      * Get the product image URL.
      */
     public function getImageUrlAttribute()

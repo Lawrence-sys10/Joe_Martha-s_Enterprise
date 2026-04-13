@@ -146,6 +146,13 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/password/reset-user/{user}', [PasswordController::class, 'resetUserPassword'])
         ->name('password.reset-user')
         ->middleware('can:reset passwords');
+    
+    // ==========================================
+    // BARCODE API ROUTES
+    // ==========================================
+    
+    // Get product by barcode for POS
+    Route::get('/api/product/barcode/{barcode}', [ProductController::class, 'getProductByBarcode'])->name('api.product.barcode');
 });
 
 // API Routes for AJAX

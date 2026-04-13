@@ -21,11 +21,36 @@
 @section('content')
 <div class="py-8">
     <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+        <!-- Hidden Barcode Scanner Input - Invisible but functional -->
+        <input type="text" id="barcode-scanner" 
+               style="position: fixed; top: 0; left: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none;"
+               autofocus>
+
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <!-- Product Selection Area -->
             <div class="lg:col-span-2">
                 <div class="bg-white rounded-2xl shadow-xl border border-amber-100 overflow-hidden">
                     <div class="p-6">
+                        <!-- Barcode Scanning Status Indicator -->
+                        <div class="mb-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-3 border border-green-200">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center animate-pulse">
+                                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-semibold text-green-700">Barcode Scanner Ready</p>
+                                        <p class="text-xs text-green-600">Scan any product barcode to add to cart automatically</p>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <span class="text-xs text-green-600 bg-green-100 px-2 py-1 rounded-full">Active</span>
+                                </div>
+                            </div>
+                        </div>
+                        
                         <!-- Search Bar -->
                         <div class="mb-6">
                             <div class="relative">
@@ -58,12 +83,16 @@
                                  data-name="{{ $product->name }}"
                                  data-price="{{ $product->unit_price }}"
                                  data-stock="{{ $product->stock_quantity }}"
-                                 data-category="{{ $product->category_id }}">
+                                 data-category="{{ $product->category_id }}"
+                                 data-barcode="{{ $product->barcode }}">
                                 <div class="p-4">
                                     <div class="flex justify-between items-start mb-2">
                                         <div class="flex-1">
                                             <h3 class="font-semibold text-gray-800">{{ $product->name }}</h3>
                                             <p class="text-xs text-gray-500 mt-1">SKU: {{ $product->sku }}</p>
+                                            @if($product->barcode)
+                                            <p class="text-xs text-gray-400">Barcode: {{ $product->barcode }}</p>
+                                            @endif
                                         </div>
                                         @if($product->stock_quantity <= 10)
                                         <span class="text-xs bg-red-100 text-red-600 px-2 py-1 rounded-full">Low Stock</span>
@@ -110,11 +139,11 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
                                 </svg>
                                 <p>Your cart is empty</p>
-                                <p class="text-xs mt-1">Add items to get started</p>
+                                <p class="text-xs mt-1">Scan a product to get started</p>
                             </div>
                         </div>
                         
-                        <!-- Cart Summary - Tax Row Removed -->
+                        <!-- Cart Summary -->
                         <div class="border-t border-gray-200 pt-4 space-y-2">
                             <div class="flex justify-between text-gray-600">
                                 <span>Subtotal</span>
@@ -178,6 +207,81 @@
 <script>
     let cart = [];
     let selectedPaymentMethod = 'cash';
+    let barcodeBuffer = '';
+    let barcodeTimeout;
+    
+    // Hidden Barcode Scanner - Listens for barcode scans anywhere on the page
+    document.addEventListener('keypress', function(e) {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+            return;
+        }
+        
+        barcodeBuffer += e.key;
+        
+        clearTimeout(barcodeTimeout);
+        barcodeTimeout = setTimeout(function() {
+            if (barcodeBuffer.length > 3) {
+                fetchProductByBarcode(barcodeBuffer);
+            }
+            barcodeBuffer = '';
+        }, 50);
+    });
+    
+    function fetchProductByBarcode(barcode) {
+        fetch(`/api/product/barcode/${encodeURIComponent(barcode)}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    addProductToCart(data.product);
+                } else {
+                    showNotification(`Product not found`, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showNotification('Error fetching product', 'error');
+            });
+    }
+    
+    function addProductToCart(product) {
+        const existingItem = cart.find(i => i.id === product.id);
+        const stock = product.stock_quantity;
+        
+        if (existingItem) {
+            if (existingItem.quantity + 1 <= stock) {
+                existingItem.quantity++;
+                showNotification(`${product.name} quantity increased`, 'success');
+            } else {
+                showNotification(`Insufficient stock! Only ${stock} available`, 'error');
+            }
+        } else {
+            if (stock > 0) {
+                cart.push({
+                    id: product.id,
+                    name: product.name,
+                    price: parseFloat(product.unit_price),
+                    quantity: 1
+                });
+                showNotification(`${product.name} added to cart`, 'success');
+            } else {
+                showNotification('Product is out of stock!', 'error');
+            }
+        }
+        updateCart();
+    }
+    
+    function showNotification(message, type) {
+        const bgColor = type === 'success' ? 'bg-green-500' : 'bg-red-500';
+        const notification = document.createElement('div');
+        notification.className = `fixed bottom-4 right-4 ${bgColor} text-white px-6 py-3 rounded-lg shadow-lg z-50 transition-all duration-300`;
+        notification.innerHTML = `<div class="flex items-center gap-2"><span>${message}</span></div>`;
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.style.opacity = '0';
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
+    }
     
     // Payment method selection
     document.querySelectorAll('.payment-method-btn').forEach(btn => {
@@ -214,54 +318,20 @@
         });
     });
     
-    // Add to cart
+    // Add to cart button handler for product cards
     document.querySelectorAll('.add-to-cart-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
             const productItem = btn.closest('.product-item');
-            const id = parseInt(productItem.dataset.id);
-            const name = productItem.dataset.name;
-            const price = parseFloat(productItem.dataset.price);
-            const stock = parseInt(productItem.dataset.stock);
-            
-            const existingItem = cart.find(i => i.id === id);
-            if (existingItem) {
-                if (existingItem.quantity + 1 <= stock) {
-                    existingItem.quantity++;
-                    showNotification(`${name} quantity increased to ${existingItem.quantity}`, 'success');
-                } else {
-                    alert('Insufficient stock!');
-                }
-            } else {
-                if (stock > 0) {
-                    cart.push({ id, name, price, quantity: 1 });
-                    showNotification(`${name} added to cart`, 'success');
-                } else {
-                    alert('Product is out of stock!');
-                }
-            }
-            updateCart();
+            const product = {
+                id: parseInt(productItem.dataset.id),
+                name: productItem.dataset.name,
+                unit_price: parseFloat(productItem.dataset.price),
+                stock_quantity: parseInt(productItem.dataset.stock)
+            };
+            addProductToCart(product);
         });
     });
-    
-    function showNotification(message, type) {
-        const notification = document.createElement('div');
-        notification.className = 'fixed bottom-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 transition-all duration-300 transform translate-y-0 opacity-100';
-        notification.innerHTML = `
-            <div class="flex items-center gap-2">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                </svg>
-                <span>${message}</span>
-            </div>
-        `;
-        document.body.appendChild(notification);
-        
-        setTimeout(() => {
-            notification.classList.add('opacity-0', 'translate-y-2');
-            setTimeout(() => notification.remove(), 300);
-        }, 2000);
-    }
     
     function updateCart() {
         const cartContainer = document.getElementById('cart-items');
@@ -272,7 +342,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
                     </svg>
                     <p>Your cart is empty</p>
-                    <p class="text-xs mt-1">Add items to get started</p>
+                    <p class="text-xs mt-1">Scan a product to get started</p>
                 </div>
             `;
         } else {
@@ -300,11 +370,8 @@
         }
         
         const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-        const total = subtotal;
-        
         document.getElementById('subtotal').innerHTML = `GHS ${subtotal.toFixed(2)}`;
-        document.getElementById('total').innerHTML = `GHS ${total.toFixed(2)}`;
-        
+        document.getElementById('total').innerHTML = `GHS ${subtotal.toFixed(2)}`;
         updateChange();
     }
     
@@ -323,38 +390,28 @@
     
     function updateChange() {
         const amountPaid = parseFloat(document.getElementById('amount-paid').value) || 0;
-        const totalText = document.getElementById('total').innerText;
-        const total = parseFloat(totalText.replace('GHS ', ''));
+        const total = parseFloat(document.getElementById('total').innerText.replace('GHS ', ''));
         const change = amountPaid - total;
         const changeElement = document.getElementById('change');
         changeElement.innerHTML = `GHS ${change >= 0 ? change.toFixed(2) : '0.00'}`;
-        if (change < 0) {
-            changeElement.classList.add('text-red-600');
-            changeElement.classList.remove('text-green-600');
-        } else {
-            changeElement.classList.add('text-green-600');
-            changeElement.classList.remove('text-red-600');
-        }
     }
     
     document.getElementById('amount-paid').addEventListener('input', updateChange);
     
     document.getElementById('checkout-btn').addEventListener('click', async () => {
         if (cart.length === 0) {
-            alert('Cart is empty!');
+            showNotification('Cart is empty!', 'error');
             return;
         }
         
-        const totalText = document.getElementById('total').innerText;
-        const total = parseFloat(totalText.replace('GHS ', ''));
+        const total = parseFloat(document.getElementById('total').innerText.replace('GHS ', ''));
         const amountPaid = parseFloat(document.getElementById('amount-paid').value) || 0;
         
         if (amountPaid < total) {
-            alert('Insufficient payment amount!');
+            showNotification('Insufficient payment amount!', 'error');
             return;
         }
         
-        // Disable button to prevent double submission
         const checkoutBtn = document.getElementById('checkout-btn');
         checkoutBtn.disabled = true;
         checkoutBtn.innerHTML = 'Processing...';
@@ -382,16 +439,18 @@
             const result = await response.json();
             
             if (result.success) {
-                alert(`✅ Sale Completed!\nInvoice: ${result.invoice_number}\nTotal: GHS ${total.toFixed(2)}`);
-                window.location.href = '{{ route("sales.index") }}';
+                showNotification(`✅ Sale Completed! Invoice: ${result.invoice_number}`, 'success');
+                setTimeout(() => {
+                    window.location.href = '{{ route("sales.index") }}';
+                }, 1500);
             } else {
-                alert('❌ Error: ' + result.message);
+                showNotification('❌ Error: ' + result.message, 'error');
                 checkoutBtn.disabled = false;
                 checkoutBtn.innerHTML = 'Complete Sale';
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('❌ Error processing sale: ' + error.message);
+            showNotification('❌ Error processing sale', 'error');
             checkoutBtn.disabled = false;
             checkoutBtn.innerHTML = 'Complete Sale';
         }
@@ -402,13 +461,19 @@
         const searchTerm = e.target.value.toLowerCase();
         document.querySelectorAll('.product-item').forEach(item => {
             const name = item.querySelector('h3').textContent.toLowerCase();
-            if (name.includes(searchTerm)) {
+            const barcode = item.dataset.barcode ? item.dataset.barcode.toLowerCase() : '';
+            if (name.includes(searchTerm) || barcode.includes(searchTerm)) {
                 item.style.display = 'block';
             } else {
                 item.style.display = 'none';
             }
         });
     });
+    
+    // Focus the hidden scanner on page load
+    setTimeout(() => {
+        document.getElementById('barcode-scanner').focus();
+    }, 100);
 </script>
 @endpush
 @endsection
